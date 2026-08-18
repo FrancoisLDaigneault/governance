@@ -1,8 +1,7 @@
 {
   "version": 1,
-  "reference_repo": "FrancoisLDaigneault/pi-config",
   "verified_at": "2026-08-18",
-  "source": "docs/repo-settings.md, cross-checked control by control against the live reference repo state via gh api GETs; every desired value below equals the verified pi-config state",
+  "source": "a hand-maintained platform-settings inventory, cross-checked control by control against live repository state via gh api GETs; every desired value below equals a state that was verified live rather than written from memory",
   "notes": [
     "projection is a jq filter applied to the read endpoint response; it extracts exactly the fields this baseline governs, so server-added defaults never cause false drift",
     "desired is the expected projection output; comparison is done on canonical JSON (sorted keys, compact separators)",

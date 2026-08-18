@@ -7,7 +7,7 @@ on:
     branches: [main]
   schedule:
     - cron: "0 6 * * 2"  # weekly Tuesday 06:00 UTC - catches bit-rot without pushes
-                         # (pi-config holds the Monday slot; keep the fleet staggered)
+                         # (Tuesday keeps this off the fleet's busiest scheduled slot)
 
 permissions:
   contents: read
