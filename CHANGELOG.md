@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/fld-forge/governance/compare/v0.6.0...v0.6.1) (2026-08-18)
+
+
+### Documentation
+
+* schedule the fleet audit locally and correct the credential guidance ([#16](https://github.com/fld-forge/governance/issues/16)) ([933b60f](https://github.com/fld-forge/governance/commit/933b60f98ced2d872553a29a72ea433f4c59a8eb))
+
 ## [0.6.0](https://github.com/fld-forge/governance/compare/v0.5.0...v0.6.0) (2026-08-18)
 
 
