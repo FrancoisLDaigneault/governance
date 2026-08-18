@@ -12,13 +12,13 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet audit duration | 63 s (12 repositories + 1 organization) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
+| Fleet audit duration | not yet measured (3 repositories + 1 organization) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.1 s (203 tests) | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 2.8 s (199 tests) | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -36,7 +36,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet drift cells | 65 of 179 (14 controls x 12 repos, plus 11 organization controls); 2 of them in the governed organization, the rest in deliberately ungoverned personal repositories | trending to 0 on governed repos | `uv run python scripts/audit.py --all` |
+| Fleet drift cells | not yet measured for 3 repositories plus 1 organization | trending to 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
 | Release integrity (SBOM + provenance attestation) | not yet measured (no release cut) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, pip-audit, Dependabot, secret scanning) |
@@ -47,7 +47,7 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Branch coverage | 99.18% | >= 90% (enforced floor) | every full `uv run pytest` run (hook + CI + `just check`) |
+| Branch coverage | 99.17% | >= 90% (enforced floor) | every full `uv run pytest` run (hook + CI + `just check`) |
 
 Supporting indicators:
 
@@ -55,7 +55,7 @@ Supporting indicators:
 | --- | --- | --- | --- |
 | Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit hook + CI) |
 | src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 203 (188 unit / 15 integration) | 100% green | `uv run pytest` (hook + CI) |
+| Green tests | 199 (185 unit / 14 integration) | 100% green | `uv run pytest` (hook + CI) |
 | Modules performing IO | 1 of 8 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` |
 
 ## Scalability
@@ -67,14 +67,14 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Cost per audited repository | 5.3 s (63 s / 12 repos) | stays under 5 s per repo | Fleet audit duration divided by repository count |
+| Cost per audited repository | not yet measured for the scoped fleet | stays under 5 s per repo | Fleet audit duration divided by repository count |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
 | Governed controls | 25 (14 repository, 11 organization) | grows only with a recorded decision | `src/governance_tools/baseline.json` |
-| Repositories covered by a fleet audit | 12 (every non-archived repo owned) | 100% of owned repositories | `scripts/audit.py --all` enumerates them |
+| Repositories covered by a fleet audit | 3 (every non-archived `fld-forge` repo) | 100% of `fld-forge` repositories | `scripts/audit.py --all` enumerates them |
 | Unaudited repository able to pass a run | 0 (structurally impossible) | 0, always | Missing controls back-fill as `ERR` and force a non-zero exit |
 
 A KPI that is always green effortlessly should be tightened; a KPI that is always red should be fixed or dropped.

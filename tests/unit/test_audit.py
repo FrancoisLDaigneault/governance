@@ -7,7 +7,7 @@ let the audit exit 0.
 import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
-from governance_tools.audit import audit, main, resolve_repos, statuses_for
+from governance_tools.audit import audit, main, resolve_orgs, resolve_repos, statuses_for
 from governance_tools.baseline import Control
 from governance_tools.matrix import count_cells, render_matrix
 from governance_tools.report import DRIFT, ERR, NA, OK, ControlResult, RepoReport
@@ -53,18 +53,16 @@ def test_resolve_repos_none_without_arguments() -> None:
     assert resolve_repos(FakeGh(), []) is None
 
 
-def test_resolve_repos_all_enumerates_and_sorts() -> None:
-    gh = FakeGh(rules=[("api user", ok("me")), ("repo list", ok("me/z\nme/a\n"))])
-    assert resolve_repos(gh, ["--all"]) == ["me/a", "me/z"]
-
-
-def test_resolve_repos_all_handles_login_failure() -> None:
-    gh = FakeGh(rules=[("api user", fail("not logged in"))])
-    assert resolve_repos(gh, ["--all"]) is None
+def test_all_is_scoped_to_fld_forge() -> None:
+    gh = FakeGh(rules=[("repo list fld-forge", ok("fld-forge/z\nfld-forge/a\n"))])
+    assert resolve_repos(gh, ["--all"]) == ["fld-forge/a", "fld-forge/z"]
+    assert resolve_orgs(gh, ["--all"]) == ["fld-forge"]
+    assert len(gh.calls) == 1
+    assert gh.calls[0].args[:3] == ("repo", "list", "fld-forge")
 
 
 def test_resolve_repos_all_handles_listing_failure() -> None:
-    gh = FakeGh(rules=[("api user", ok("me")), ("repo list", fail("HTTP 500"))])
+    gh = FakeGh(rules=[("repo list fld-forge", fail("HTTP 500"))])
     assert resolve_repos(gh, ["--all"]) is None
 
 
@@ -141,49 +139,16 @@ def test_render_matrix_renders_a_missing_status_as_err(controls: list[Control]) 
     assert lines[-1].count(ERR) == len(controls) - 1
 
 
-def _fleet_gh() -> FakeGh:
-    """A user in two orgs; acme repeats one of the user's own repositories."""
-    return FakeGh(
-        rules=[
-            ("api user/orgs", ok("acme\nfld-forge\n")),
-            ("api user", ok("me")),
-            ("repo list me", ok("me/one\nme/two\n")),
-            ("repo list acme", ok("acme/x\nme/two\n")),
-            ("repo list fld-forge", ok("fld-forge/.github\n")),
-        ]
-    )
-
-
-def test_fleet_unions_the_user_and_every_org_deduplicated() -> None:
-    """Once the fleet lives under an org, --all must still enumerate it."""
-    assert resolve_repos(_fleet_gh(), ["--all"]) == [
-        "acme/x",
-        "fld-forge/.github",
-        "me/one",
-        "me/two",
-    ]
-
-
-def test_fleet_filters_archived_repositories_for_every_owner() -> None:
-    gh = _fleet_gh()
+def test_fleet_filters_archived_repositories() -> None:
+    gh = FakeGh(rules=[("repo list fld-forge", ok("fld-forge/.github\n"))])
     resolve_repos(gh, ["--all"])
-    listings = [call for call in gh.calls if "repo list" in call.joined]
-    assert len(listings) == 3, "the user and both orgs must each be enumerated"
-    for call in listings:
-        assert "select(.isArchived | not)" in call.joined
+    assert "select(.isArchived | not)" in gh.calls[0].joined
 
 
-def test_fleet_org_listing_failure_is_visible_and_never_shrinks(
+def test_fleet_listing_failure_is_visible_and_never_shrinks(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A silently shorter fleet would report the missing repositories as clean."""
-    gh = _fleet_gh()
-    gh.override("repo list fld-forge", fail("HTTP 403"))
+    """A silently empty fleet would report the missing repositories as clean."""
+    gh = FakeGh(rules=[("repo list fld-forge", fail("HTTP 403"))])
     assert resolve_repos(gh, ["--all"]) is None
     assert "cannot list repositories for fld-forge" in capsys.readouterr().err
-
-
-def test_fleet_org_enumeration_failure_is_visible(capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh(rules=[("api user/orgs", fail("HTTP 500")), ("api user", ok("me"))])
-    assert resolve_repos(gh, ["--all"]) is None
-    assert "cannot list organizations" in capsys.readouterr().err
