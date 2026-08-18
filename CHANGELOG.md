@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/fld-forge/governance/compare/v0.3.0...v0.3.1) (2026-08-18)
+
+
+### Documentation
+
+* point references at the new organization ([#6](https://github.com/fld-forge/governance/issues/6)) ([27155de](https://github.com/fld-forge/governance/commit/27155de42a7da7fc04a11587d7b148e755b2ec3f))
+
 ## [0.3.0](https://github.com/fld-forge/governance/compare/v0.2.0...v0.3.0) (2026-08-18)
 
 ### Features
