@@ -1,0 +1,152 @@
+name: Fleet audit
+
+# The baseline is only worth what it catches. Nothing ran the drift audit on a
+# schedule, so a setting changed by hand stayed changed until someone thought to
+# look. This runs it weekly and makes the result impossible to miss: the matrix
+# lands in the run summary every time, and organization drift opens a tracking
+# issue that closes itself once the organization is clean again.
+
+on:
+  schedule:
+    - cron: "0 7 * * 3"  # weekly Wednesday 07:00 UTC - clear of this repo's CI
+                         # (Tuesday 06:00) and Scorecard (Tuesday 06:30) slots
+  workflow_dispatch:  # the only way to prove the workflow before its first firing
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write  # the single drift tracking issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - run: uv sync --locked
+
+      # The workflow's own GITHUB_TOKEN is scoped to this repository: it cannot
+      # read a sibling repository's settings or any organization state, so the
+      # audit needs a separate read-only token. Fail here rather than let the
+      # audit report an empty, clean-looking fleet.
+      - name: Require the audit token
+        env:
+          AUDIT_TOKEN: ${{ secrets.GOVERNANCE_AUDIT_TOKEN }}
+        run: |
+          if [ -z "$AUDIT_TOKEN" ]; then
+            echo "::error::GOVERNANCE_AUDIT_TOKEN is not set. Create the read-only token and store it as a repository secret - see docs/scheduled-audit.md for the exact permissions."
+            exit 1
+          fi
+
+      - name: Audit the fleet and the organization
+        env:
+          GH_TOKEN: ${{ secrets.GOVERNANCE_AUDIT_TOKEN }}
+        run: |
+          set +e
+          uv run python scripts/audit.py --all >audit.txt 2>audit.err
+          status=$?
+          set -e
+          cat audit.err >&2 || true
+          echo "audit exit status: $status (1 means drift or unchecked cells, not a crash)"
+          if [ ! -s audit.txt ]; then
+            echo "::error::the audit produced no matrix (exit $status); see the log above"
+            exit 1
+          fi
+
+      # Always published, drift or not: a clean matrix is the evidence that the
+      # audit ran and saw the whole fleet.
+      - name: Publish the matrix to the run summary
+        if: always()
+        run: |
+          if [ ! -f audit.txt ]; then exit 0; fi
+          {
+            echo "## Fleet audit"
+            echo
+            echo '```'
+            cat audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Rows are OWNER/REPO and the organization section is keyed by the org
+      # login, so one prefix selects both. Repositories outside the organization
+      # are enumerated for honest reporting but never gate this run.
+      - name: Decide what is in scope
+        id: scope
+        env:
+          ORG: ${{ github.repository_owner }}
+        run: |
+          if ! grep -qE "^$ORG[/ ]" audit.txt; then
+            echo "::error::the audit produced no row for $ORG. The token cannot enumerate the organization (see docs/scheduled-audit.md); treating a fleet with no in-scope rows as clean would be a false all-clear."
+            exit 1
+          fi
+          if grep -E "^$ORG[/ ]" audit.txt | grep -qE '(DRIFT|ERR|STRICT)'; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # One issue, edited in place: a comment per run would bury the current
+      # state under a log of every run that ever found the same drift.
+      - name: Open, update or close the tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG: ${{ github.repository_owner }}
+          DRIFT: ${{ steps.scope.outputs.drift }}
+          TITLE: Governance drift in the fleet
+        run: |
+          number=$(gh issue list --state open --search "in:title $TITLE" \
+            --json number,title --jq '[.[] | select(.title == env.TITLE)][0].number // empty')
+          if [ "$DRIFT" != "true" ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" --comment "The organization is back to baseline; closed by the scheduled fleet audit."
+            else
+              echo "no in-scope drift and no open tracking issue - nothing to say"
+            fi
+            exit 0
+          fi
+          {
+            echo "The scheduled fleet audit found drift in \`$ORG\`."
+            echo
+            echo "**In scope:** rows beginning \`$ORG/\` and the organization section."
+            echo "Rows for any other owner are informational - repositories outside the"
+            echo "organization are deliberately ungoverned and never gate this run."
+            echo
+            echo "Correct one repository with:"
+            echo
+            echo '```'
+            echo "uv run python scripts/bootstrap.py $ORG/REPO --apply"
+            echo '```'
+            echo
+            echo "Correct the organization with:"
+            echo
+            echo '```'
+            echo "uv run python scripts/bootstrap.py --org $ORG --apply"
+            echo '```'
+            echo
+            echo '```'
+            cat audit.txt
+            echo '```'
+            echo
+            echo "This issue is rewritten by every run and closes itself once the organization is clean."
+          } > body.md
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file body.md
+          else
+            gh issue create --title "$TITLE" --body-file body.md
+          fi
+
+      # Last, so the tracking issue is always written first: a red run in the
+      # Actions tab is the second signal, and neither depends on the other.
+      - name: Fail on organization drift
+        env:
+          DRIFT: ${{ steps.scope.outputs.drift }}
+        run: |
+          if [ "$DRIFT" = "true" ]; then
+            echo "::error::organization drift detected - see the tracking issue"
+            exit 1
+          fi
+          echo "organization clean"

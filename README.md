@@ -97,6 +97,7 @@ OpenSSF Scorecard analyse the repository on their own cadence.
 | [`SECURITY.md`](SECURITY.md) | Threat model, reporting, release-asset verification |
 | [`NORTHSTAR.md`](NORTHSTAR.md) | Measured steering KPIs, one per axis |
 | [`docs/adr/`](docs/adr/README.md) | Architecture decision records |
+| [`docs/scheduled-audit.md`](docs/scheduled-audit.md) | The weekly drift audit: its token, and what it gates |
 
 ## Controls
 
@@ -161,17 +162,22 @@ error) is rendered as a row of `ERR` cells with its output printed under the
 matrix - never dropped from the report. A fleet audit therefore cannot exit
 0 with a repository unaudited or half-audited.
 
-## Scheduled audit (documented, not enabled)
+## Scheduled audit
 
-A weekly GitHub Actions job could run the audit across the fleet and fail on drift.
-It is NOT enabled because the workflow `GITHUB_TOKEN` is scoped to its own
-repository and cannot read sibling repos. Enabling it requires an owner
-action: create a fine-grained PAT (read-only: Administration, Code scanning,
-Secret scanning, Dependabot alerts on the governed repos), store it as a
-repository secret (for example `GOVERNANCE_AUDIT_TOKEN`), and add a small
-scheduled workflow that checks out this repo and runs the audit with
-`GH_TOKEN=${{ secrets.GOVERNANCE_AUDIT_TOKEN }}`. Prefer a GitHub App
-installation for durable automation.
+`.github/workflows/fleet-audit.yml` runs the fleet and organization audit every
+Wednesday at 07:00 UTC, and on demand. The matrix goes to the run summary every
+time; organization drift opens a single tracking issue, rewritten on each run
+and closed by the workflow once the organization is clean.
+
+It needs a read-only token in the repository secret `GOVERNANCE_AUDIT_TOKEN`,
+because a workflow's own `GITHUB_TOKEN` cannot read sibling repositories or
+organization state. Without it the workflow fails with a named error rather
+than reporting an empty, clean-looking fleet.
+
+Only the organization gates the run: repositories under other owners are
+enumerated for honest reporting and never acted on. Token permissions, the
+enumeration caveat and the verification steps are in
+[`docs/scheduled-audit.md`](docs/scheduled-audit.md).
 
 ## Org-migration note
 

@@ -12,7 +12,7 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet audit duration | 36 s (11 repositories) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
+| Fleet audit duration | 63 s (12 repositories + 1 organization) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
 
 Supporting indicators:
 
@@ -36,7 +36,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet drift cells | 32 of 110 (10 controls x 11 repos) | trending to 0 on governed repos | `uv run python scripts/audit.py --all` |
+| Fleet drift cells | 65 of 179 (14 controls x 12 repos, plus 11 organization controls); 2 of them in the governed organization, the rest in deliberately ungoverned personal repositories | trending to 0 on governed repos | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
 | Release integrity (SBOM + provenance attestation) | not yet measured (no release cut) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, pip-audit, Dependabot, secret scanning) |
@@ -67,14 +67,14 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Cost per audited repository | 3.3 s (36 s / 11 repos) | stays under 5 s per repo | Fleet audit duration divided by repository count |
+| Cost per audited repository | 5.3 s (63 s / 12 repos) | stays under 5 s per repo | Fleet audit duration divided by repository count |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
 | Governed controls | 25 (14 repository, 11 organization) | grows only with a recorded decision | `src/governance_tools/baseline.json` |
-| Repositories covered by a fleet audit | 11 (every non-archived repo owned) | 100% of owned repositories | `scripts/audit.py --all` enumerates them |
+| Repositories covered by a fleet audit | 12 (every non-archived repo owned) | 100% of owned repositories | `scripts/audit.py --all` enumerates them |
 | Unaudited repository able to pass a run | 0 (structurally impossible) | 0, always | Missing controls back-fill as `ERR` and force a non-zero exit |
 
 A KPI that is always green effortlessly should be tightened; a KPI that is always red should be fixed or dropped.
