@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/fld-forge/governance/compare/v0.6.1...v0.6.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* scope fleet audit to fld-forge ([579555b](https://github.com/fld-forge/governance/commit/579555b9635f1f5f69b3edc8e581a3d4d7d371f4))
+
 ## [0.6.1](https://github.com/fld-forge/governance/compare/v0.6.0...v0.6.1) (2026-08-18)
 
 
