@@ -12,7 +12,7 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet audit duration | 31 s (11 repositories) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
+| Fleet audit duration | 36 s (11 repositories) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
 
 Supporting indicators:
 
@@ -36,7 +36,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet drift cells | 39 of 110 (10 controls x 11 repos) | trending to 0 on governed repos | `uv run python scripts/audit.py --all` |
+| Fleet drift cells | 32 of 110 (10 controls x 11 repos) | trending to 0 on governed repos | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
 | Release integrity (SBOM + provenance attestation) | not yet measured (no release cut) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, pip-audit, Dependabot, secret scanning) |
@@ -67,7 +67,7 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Cost per audited repository | 2.8 s (31 s / 11 repos) | stays under 5 s per repo | Fleet audit duration divided by repository count |
+| Cost per audited repository | 3.3 s (36 s / 11 repos) | stays under 5 s per repo | Fleet audit duration divided by repository count |
 
 Supporting indicators:
 
