@@ -1,5 +1,16 @@
 # Governance baseline as code
 
+[![CI](https://github.com/FrancoisLDaigneault/governance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FrancoisLDaigneault/governance/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/FrancoisLDaigneault/governance/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/FrancoisLDaigneault/governance/security/code-scanning)
+[![Release](https://img.shields.io/github/v/release/FrancoisLDaigneault/governance)](https://github.com/FrancoisLDaigneault/governance/releases)
+[![License](https://img.shields.io/github/license/FrancoisLDaigneault/governance)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![mypy](https://img.shields.io/badge/mypy-strict-blue)](pyproject.toml)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/FrancoisLDaigneault/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/FrancoisLDaigneault/governance)
+
 This repository governs GitHub **repository settings** across the fleet. It
 is not the Pi configuration tool (that is
 [pi-config](https://github.com/FrancoisLDaigneault/pi-config), from which
@@ -23,9 +34,10 @@ uv sync
 git config core.hooksPath hooks   # enable the versioned pre-commit gate
 ```
 
-Or `just setup`. Requirements: `gh` authenticated with the `repo` scope, and
-[uv](https://docs.astral.sh/uv/). A fleet audit takes roughly 20-30 seconds
-per repo (a dozen API calls each).
+Or `just setup`. Requirements: `gh` authenticated with the `repo` scope,
+[uv](https://docs.astral.sh/uv/) and Python 3.12+ (uv downloads it
+automatically via `.python-version`). A fleet audit costs roughly 3 seconds
+per repository (a dozen API calls each).
 
 ## Usage
 
@@ -48,9 +60,25 @@ uv run python scripts/audit.py OWNER/REPO1 OWNER/REPO2
 
 `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` and
 `uv run pytest -q` (90% branch-coverage floor). All four run in the
-versioned pre-commit hook and via `just check`. The suite never touches the
-network: every test drives the real code through a fake `gh` layer, so
-mutations are recorded and "no write without `--apply`" is provable.
+versioned pre-commit hook, in the CI quality job and via `just check`. The
+suite never touches the network: every test drives the real code through a
+fake `gh` layer, so mutations are recorded and "no write without `--apply`"
+is provable.
+
+CI adds a locked install (`uv sync --locked`), gitleaks over the full git
+history, pip-audit, zizmor, shellcheck and a weekly scheduled run; CodeQL and
+OpenSSF Scorecard analyse the repository on their own cadence.
+
+## Project documents
+
+| Document | Purpose |
+| --- | --- |
+| [`AGENTS.md`](AGENTS.md) | Operating manual for coding agents: blast radius, invariants, hard rules |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, contribution flow, gates, commit conventions |
+| [`GOVERNANCE.md`](GOVERNANCE.md) | Who decides, and what changing the baseline requires |
+| [`SECURITY.md`](SECURITY.md) | Threat model, reporting, release-asset verification |
+| [`NORTHSTAR.md`](NORTHSTAR.md) | Measured steering KPIs, one per axis |
+| [`docs/adr/`](docs/adr/README.md) | Architecture decision records |
 
 ## Controls
 
@@ -63,7 +91,7 @@ Public-only controls (rulesets, CodeQL, secret scanning, push protection,
 private vulnerability reporting) are skipped with `NA` on private repos:
 a free personal plan only gets them on public repositories. Machine-local
 commit-signing configuration is out of scope (not a platform setting; see
-the commit-signing section of `docs/repo-settings.md`).
+the commit-signing section of pi-config's `docs/repo-settings.md`).
 
 Comparison is projection-based: only the fields the baseline governs are
 compared (canonical JSON), so server-added defaults never produce false
@@ -106,9 +134,10 @@ triggers a corrective write.
 
 ## Drift detection for pi-config itself
 
-Running `uv run python scripts/audit.py FrancoisLDaigneault/pi-config` verifies that
-the live platform settings still match `docs/repo-settings.md` (the baseline
-was extracted from it). Run it after any settings change, or on a schedule.
+Running `uv run python scripts/audit.py FrancoisLDaigneault/pi-config` verifies
+that the live platform settings still match pi-config's `docs/repo-settings.md`
+(the baseline was extracted from it). Run it after any settings change, or on a
+schedule.
 
 A repository whose check aborts (bad name, auth failure, transient API
 error) is rendered as a row of `ERR` cells with its output printed under the

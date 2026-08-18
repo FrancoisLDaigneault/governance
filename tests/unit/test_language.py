@@ -2,7 +2,9 @@
 
 Pragmatic heuristic: French text virtually always carries accented characters,
 so scanning for Latin diacritics catches regressions cheaply without NLP.
-Deliberately excluded: .venv and tool caches (not tracked source).
+Deliberately excluded: LICENSE (author name), CODE_OF_CONDUCT.md (canonical
+English text), CHANGELOG.md (generated history), .venv and tool caches (not
+tracked source).
 """
 
 from pathlib import Path
@@ -26,6 +28,15 @@ def _explicit_files() -> list[Path]:
         REPO / ".gitattributes",
         REPO / ".gitignore",
         REPO / "README.md",
+        REPO / "AGENTS.md",
+        REPO / "GOVERNANCE.md",
+        REPO / "CONTRIBUTING.md",
+        REPO / "SECURITY.md",
+        REPO / "NORTHSTAR.md",
+        REPO / "docs" / "adr" / "README.md",
+        REPO / ".github" / "CODEOWNERS",
+        REPO / ".github" / "PULL_REQUEST_TEMPLATE.md",
+        REPO / ".github" / "dependabot.yml",
         REPO / "src" / "governance_tools" / "baseline.json",
         REPO / "pyproject.toml",
     ]
@@ -35,6 +46,9 @@ def _scanned_files() -> list[Path]:
     files = _explicit_files()
     for tree in ("src", "scripts", "tests"):
         files += sorted((REPO / tree).rglob("*.py"))
+    files += sorted((REPO / "docs").rglob("*.md"))
+    files += sorted((REPO / ".github" / "ISSUE_TEMPLATE").glob("*.yml"))
+    files += sorted((REPO / ".github" / "workflows").glob("*.yml"))
     return files
 
 

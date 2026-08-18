@@ -1,0 +1,5 @@
+# Informational while the main-protection ruleset requires 0 approving
+# reviews (single-maintainer repo; review happens in the orchestrated agent
+# process before merge). Becomes enforceable if required reviews are enabled
+# later in the ruleset.
+* @FrancoisLDaigneault
