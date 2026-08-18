@@ -8,7 +8,7 @@ import pytest
 import governance_tools
 from governance_tools.baseline import BASELINE_PATH, BaselineError, Control, load_controls
 
-EXPECTED_CONTROLS = 10
+EXPECTED_CONTROLS = 14
 
 
 def write_baseline(tmp_path: Path, controls: object) -> Path:

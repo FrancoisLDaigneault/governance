@@ -9,7 +9,9 @@
     "apply_preserve is a jq filter read from the live read endpoint and merged into apply_payload before the corrective call: it carries forward fields the API requires in the body but the baseline deliberately does not govern",
     "desired-state, not a minimum floor: a live setting stricter than the baseline is reported as drift, and for rulesets it is protected by the stricter-than-baseline guard (override with scripts/bootstrap.py --force-normalize)",
     "applicability public: free-plan personal accounts only get this control on public repos (rulesets need GitHub Pro on private repos; code scanning, secret scanning and private vulnerability reporting are public-only without paid add-ons)",
-    "machine-local git signing config (docs/repo-settings.md, commit signing section) is out of scope: it is not a repository platform setting reachable through the API"
+    "machine-local git signing config (docs/repo-settings.md, commit signing section) is out of scope: it is not a repository platform setting reachable through the API",
+    "a setting whose stricter value is the live one is deliberately NOT governed: the baseline must never be the reason a repository becomes less secure (see actions-workflow-permissions, and the secret-scanning validity-check and non-provider-pattern toggles left ungoverned for the same reason)",
+    "organization-level state (org rulesets, the tier custom property, the security configuration, org Actions policy, member privileges, 2FA) is NOT covered by this file: it is keyed by organization, not by repository. See docs/adr/0007-organization-scope-is-a-separate-baseline.md"
   ],
   "controls": [
     {
@@ -179,6 +181,62 @@
       "apply_endpoint": "repos/{repo}/actions/permissions/workflow",
       "apply_payload": {"default_workflow_permissions": "read"},
       "apply_preserve": "{can_approve_pull_request_reviews}"
+    },
+    {
+      "id": "merge-methods-squash-only",
+      "kind": "json",
+      "description": "Squash is the only merge method. Rebase merging is actively unsafe here: it rewrites commits without re-signing them, so under the required_signatures rule a rebase merge produces commits the rule rejects. Squash merging produces one GitHub-signed commit; merge commits would leave unsigned branch commits in the default branch history.",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{allow_merge_commit, allow_rebase_merge, allow_squash_merge}",
+      "desired": {
+        "allow_merge_commit": false,
+        "allow_rebase_merge": false,
+        "allow_squash_merge": true
+      },
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}",
+      "apply_payload": {
+        "allow_merge_commit": false,
+        "allow_rebase_merge": false,
+        "allow_squash_merge": true
+      }
+    },
+    {
+      "id": "delete-branch-on-merge",
+      "kind": "json",
+      "description": "Merged pull-request branches are deleted automatically, so a stale branch cannot be revived and re-merged later",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{delete_branch_on_merge}",
+      "desired": {"delete_branch_on_merge": true},
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}",
+      "apply_payload": {"delete_branch_on_merge": true}
+    },
+    {
+      "id": "unused-collaboration-surfaces",
+      "kind": "json",
+      "description": "Wiki and projects disabled. A wiki is a second git repository that branch rules and rulesets do not cover, so leaving it on keeps an ungoverned write surface attached to a governed repository. Issues stay enabled: they carry the issue templates and disabling them would remove the documented reporting path.",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{has_projects, has_wiki}",
+      "desired": {"has_projects": false, "has_wiki": false},
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}",
+      "apply_payload": {"has_projects": false, "has_wiki": false}
+    },
+    {
+      "id": "web-commit-signoff",
+      "kind": "json",
+      "description": "Commits authored through the GitHub web editor must carry a sign-off. Repository-level mirror of the organization setting: the org value only covers repositories inside the org, so governing it here also catches repositories owned directly by a user.",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{web_commit_signoff_required}",
+      "desired": {"web_commit_signoff_required": true},
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}",
+      "apply_payload": {"web_commit_signoff_required": true}
     }
   ]
 }

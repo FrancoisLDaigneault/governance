@@ -85,7 +85,7 @@ def test_audit_records_an_unreachable_repo(controls: list[Control]) -> None:
     gh = FakeGh(rules=[("--json visibility", fail("Could not resolve to a Repository"))])
     rows, errors = audit(gh, controls, ["o/missing"])
     assert set(rows["o/missing"].values()) == {ERR}
-    assert "0/10 controls" in errors[0]
+    assert f"0/{len(controls)} controls" in errors[0]
 
 
 def test_audit_of_compliant_repo_has_no_errors(compliant: FakeGh, controls: list[Control]) -> None:
