@@ -43,6 +43,8 @@ class Control:
     apply_payload: JsonDict | None = None
     apply_preserve: str | None = None
     manual_reason: str | None = None
+    na_when: str | None = None
+    na_reason: str | None = None
 
     def applies_to(self, visibility: str) -> bool:
         """Public-only controls need a public repo (private ones need a paid plan)."""
@@ -79,10 +81,19 @@ def _get_dict(raw: JsonDict, key: str, cid: str) -> JsonDict:
     return value
 
 
-def _get_opt_dict(raw: JsonDict, key: str, cid: str) -> JsonDict | None:
-    if key not in raw:
-        return None
-    return _get_dict(raw, key, cid)
+def _parse_na(raw: JsonDict, cid: str, kind: str) -> tuple[str | None, str | None]:
+    """Live applicability probe: a jq filter on the read endpoint, and its reason.
+
+    The probe re-reads `read_endpoint`, which only a `json` control can answer:
+    a ruleset read is a listing, and a 204 endpoint returns no body at all.
+    """
+    when = _get_opt_str(raw, "na_when", cid)
+    reason = _get_opt_str(raw, "na_reason", cid)
+    if (when is None) != (reason is None):
+        raise BaselineError(f"control {cid}: na_when and na_reason must come together")
+    if when is not None and kind != "json":
+        raise BaselineError(f"control {cid}: na_when needs kind 'json', got {kind!r}")
+    return when, reason
 
 
 def _parse_scope(raw: JsonDict, cid: str) -> str:
@@ -130,6 +141,7 @@ def _parse_control(raw: JsonDict) -> Control:
         raise BaselineError(f"control {cid}: unknown applicability {applicability!r}")
     manual_reason = _get_opt_str(raw, "manual_reason", cid)
     apply_method, apply_endpoint = _parse_apply(raw, cid, manual_reason)
+    na_when, na_reason = _parse_na(raw, cid, kind)
     control = Control(
         id=cid,
         kind=kind,
@@ -141,9 +153,11 @@ def _parse_control(raw: JsonDict) -> Control:
         read_endpoint=_get_opt_str(raw, "read_endpoint", cid),
         projection=_get_opt_str(raw, "projection", cid),
         ruleset_name=_get_opt_str(raw, "ruleset_name", cid),
-        apply_payload=_get_opt_dict(raw, "apply_payload", cid),
+        apply_payload=_get_dict(raw, "apply_payload", cid) if "apply_payload" in raw else None,
         apply_preserve=_get_opt_str(raw, "apply_preserve", cid),
         manual_reason=manual_reason,
+        na_when=na_when,
+        na_reason=na_reason,
     )
     if control.kind == "ruleset" and not control.ruleset_name:
         raise BaselineError(f"control {cid}: ruleset controls need a ruleset_name")

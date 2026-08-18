@@ -137,6 +137,8 @@ def test_optional_fields_default_to_none(tmp_path: Path) -> None:
     assert control.read_endpoint is None
     assert control.apply_payload is None
     assert control.apply_preserve is None
+    assert control.na_when is None
+    assert control.na_reason is None
 
 
 def test_baseline_ships_inside_the_installed_package() -> None:
@@ -225,6 +227,38 @@ def test_split_by_scope_partitions_the_shipped_baseline() -> None:
 def test_shipped_org_controls_read_organization_endpoints() -> None:
     for control in split_by_scope(load_controls())[1]:
         assert (control.read_endpoint or "").startswith("orgs/{org}"), control.id
+
+
+def test_na_probe_is_parsed(tmp_path: Path) -> None:
+    raw = valid_control(na_when=".languages | length == 0", na_reason="no supported language")
+    control = load_controls(write_baseline(tmp_path, [raw]))[0]
+    assert control.na_when == ".languages | length == 0"
+    assert control.na_reason == "no supported language"
+
+
+@pytest.mark.parametrize("field", ["na_when", "na_reason"])
+def test_half_declared_na_probe_is_rejected(tmp_path: Path, field: str) -> None:
+    """A probe without a reason renders NA unexplained; a reason alone is dead text."""
+    path = write_baseline(tmp_path, [valid_control(**{field: "x"})])
+    with pytest.raises(BaselineError, match="na_when and na_reason must come together"):
+        load_controls(path)
+
+
+def test_na_probe_on_a_non_json_control_is_rejected(tmp_path: Path) -> None:
+    """The probe re-reads read_endpoint; a 204 endpoint has no body to filter."""
+    raw = valid_control(kind="status204", na_when=".x", na_reason="why")
+    with pytest.raises(BaselineError, match="na_when needs kind 'json'"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_only_codeql_probes_applicability() -> None:
+    """CodeQL is the one control that analyses source; the rest configure settings.
+
+    A setting is meaningful whether or not the repository carries code, so a
+    second probe would be scope creep rather than a fix.
+    """
+    probing = [c.id for c in load_controls() if c.na_when]
+    assert probing == ["codeql-default-setup"]
 
 
 def test_shipped_manual_controls_are_the_documented_three() -> None:

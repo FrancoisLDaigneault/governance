@@ -82,6 +82,10 @@ def compliant_rules(
         ("--json isArchived", ok("false")),
     ]
     for index, control in enumerate(controls, start=1):
+        if control.na_when:
+            # "false" = the control does govern this target, so the run goes on
+            # to compare state; a compliant fixture must not short-circuit to NA.
+            rules.append((control.na_when, ok("false")))
         if control.kind == "ruleset":
             ruleset_id = f"{ruleset_prefix}{index}"
             rules.append((f'select(.name=="{control.ruleset_name}")', ok(ruleset_id)))

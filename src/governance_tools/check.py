@@ -11,6 +11,7 @@ from governance_tools.controls import (
     LiveState,
     apply_control,
     fetch_ruleset,
+    probe_na,
     read_live,
     ruleset_endpoint,
 )
@@ -105,6 +106,15 @@ def check_control(
     if not control.applies_to(visibility):
         detail = f"skipped: public-only control on a {visibility} repo (needs a paid plan)"
         return ControlResult(control.id, NA, (detail,))
+    # Visibility is a static gate; some controls also need a live property of the
+    # target to be governable at all. A failed probe is an error, never NA: the
+    # baseline must not stop governing a repository because a read hiccuped.
+    if control.na_when:
+        not_applicable, error = probe_na(client, control, target)
+        if error:
+            return ControlResult(control.id, ERR, (f"applicability probe failed: {error}",))
+        if not_applicable:
+            return ControlResult(control.id, NA, (f"skipped: {control.na_reason}",))
     live = read_live(client, control, target)
     if live.error:
         return ControlResult(control.id, ERR, (f"read failed: {live.error}",))

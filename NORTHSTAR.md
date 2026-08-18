@@ -18,7 +18,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.4 s (193 tests) | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 1.1 s (203 tests) | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -54,8 +54,8 @@ Supporting indicators:
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
 | Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit hook + CI) |
-| src module / script size | max 162 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 193 (178 unit / 15 integration) | 100% green | `uv run pytest` (hook + CI) |
+| src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
+| Green tests | 203 (188 unit / 15 integration) | 100% green | `uv run pytest` (hook + CI) |
 | Modules performing IO | 1 of 8 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` |
 
 ## Scalability
@@ -73,7 +73,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Governed controls | 10 | grows only with a recorded decision | `src/governance_tools/baseline.json` |
+| Governed controls | 25 (14 repository, 11 organization) | grows only with a recorded decision | `src/governance_tools/baseline.json` |
 | Repositories covered by a fleet audit | 11 (every non-archived repo owned) | 100% of owned repositories | `scripts/audit.py --all` enumerates them |
 | Unaudited repository able to pass a run | 0 (structurally impossible) | 0, always | Missing controls back-fill as `ERR` and force a non-zero exit |
 
