@@ -8,7 +8,14 @@ import sys
 
 from governance_tools.baseline import Control, load_controls
 from governance_tools.bootstrap import check_repo
-from governance_tools.gh import Gh, GhClient, current_login, is_valid_repo, list_repos
+from governance_tools.gh import (
+    Gh,
+    GhClient,
+    current_login,
+    is_valid_repo,
+    list_orgs,
+    list_repos,
+)
 from governance_tools.report import (
     DRIFT,
     ERR,
@@ -30,19 +37,48 @@ def statuses_for(report: RepoReport, controls: list[Control]) -> dict[str, str]:
     return {control.id: seen.get(control.id, ERR) for control in controls}
 
 
-def _fleet(client: GhClient) -> list[str] | None:
-    """Every non-archived repository of the authenticated user."""
+def _lines(text: str) -> list[str]:
+    """Non-empty, stripped lines of gh output."""
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def _owners(client: GhClient) -> list[str] | None:
+    """The authenticated user, then every organization they belong to."""
     login = current_login(client)
     if not login.ok:
+        print(f"error: cannot read the current user: {login.first_error_line()}", file=sys.stderr)
         return None
-    listing = list_repos(client, login.stdout.strip())
-    if not listing.ok:
+    orgs = list_orgs(client)
+    if not orgs.ok:
+        print(f"error: cannot list organizations: {orgs.first_error_line()}", file=sys.stderr)
         return None
-    return sorted(line.strip() for line in listing.stdout.splitlines() if line.strip())
+    return [login.stdout.strip(), *_lines(orgs.stdout)]
+
+
+def _fleet(client: GhClient) -> list[str] | None:
+    """Non-archived repositories of the user and of every org they belong to.
+
+    A failed listing returns None instead of a shorter fleet: an owner dropped
+    here would take its repositories out of the matrix and report them clean.
+    """
+    owners = _owners(client)
+    if owners is None:
+        return None
+    repos: set[str] = set()
+    for owner in owners:
+        listing = list_repos(client, owner)
+        if not listing.ok:
+            print(
+                f"error: cannot list repositories for {owner}: {listing.first_error_line()}",
+                file=sys.stderr,
+            )
+            return None
+        repos.update(_lines(listing.stdout))
+    return sorted(repos)
 
 
 def resolve_repos(client: GhClient, args: list[str]) -> list[str] | None:
-    """Explicit repositories, or every non-archived repo of the current user.
+    """Explicit repositories, or the whole fleet across the user and their orgs.
 
     None means a usage error; the caller prints the usage line and exits 2.
     Names are shape-checked here because they are substituted into API paths.

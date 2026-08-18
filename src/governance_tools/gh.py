@@ -104,3 +104,8 @@ def list_repos(client: GhClient, owner: str) -> GhResult:
 def current_login(client: GhClient) -> GhResult:
     """The authenticated user's login."""
     return api_get(client, "user", ".login")
+
+
+def list_orgs(client: GhClient) -> GhResult:
+    """Logins of every organization the authenticated user belongs to."""
+    return api_get(client, "user/orgs", ".[].login")
