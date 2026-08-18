@@ -1,8 +1,18 @@
 # Governance baseline as code
 
-This directory turns the hand-maintained platform-settings inventory
-(`docs/repo-settings.md`) into an executable desired-state baseline for
-every repository owned by the account.
+This repository governs GitHub **repository settings** across the fleet. It
+is not the Pi configuration tool (that is
+[pi-config](https://github.com/FrancoisLDaigneault/pi-config), from which
+this tooling was extracted at `10be797`).
+
+> **Status: reference implementation.** These shell scripts are being
+> rewritten in Python 3.12 + uv with the full pi-config-grade apparatus
+> (tests, typing, gates, CI). Until then they remain the working tool and
+> the specification the port is written from.
+
+It turns the hand-maintained platform-settings inventory
+(pi-config's `docs/repo-settings.md`) into an executable desired-state
+baseline for every repository owned by the account.
 
 | File | Role |
 | --- | --- |
