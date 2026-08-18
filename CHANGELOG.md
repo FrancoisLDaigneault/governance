@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/fld-forge/governance/compare/v0.3.1...v0.3.2) (2026-08-18)
+
+
+### Documentation
+
+* record branch-protection and commit-signing policy as ADRs ([#8](https://github.com/fld-forge/governance/issues/8)) ([0488f95](https://github.com/fld-forge/governance/commit/0488f9588dc53ba2dc46e2c015ef2388eb7538a5))
+
 ## [0.3.1](https://github.com/fld-forge/governance/compare/v0.3.0...v0.3.1) (2026-08-18)
 
 

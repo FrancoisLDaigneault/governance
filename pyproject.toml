@@ -1,6 +1,6 @@
 [project]
 name = "governance-tools"
-version = "0.3.1"
+version = "0.3.2"
 description = "Apply and audit the GitHub repository governance baseline across a fleet"
 requires-python = ">=3.12"
 dependencies = []
