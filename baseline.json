@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "reference_repo": "FrancoisLDaigneault/pi-config",
+  "verified_at": "2026-08-18",
+  "source": "docs/repo-settings.md, cross-checked control by control against the live reference repo state via gh api GETs; every desired value below equals the verified pi-config state",
+  "notes": [
+    "projection is a jq filter applied to the read endpoint response; it extracts exactly the fields this baseline governs, so server-added defaults never cause false drift",
+    "desired is the expected projection output; comparison is done on canonical JSON (sorted keys, compact separators)",
+    "apply_payload is sent with --input - as the request body; controls without a payload send an empty body",
+    "apply_preserve is a jq filter read from the live read endpoint and merged into apply_payload before the corrective call: it carries forward fields the API requires in the body but the baseline deliberately does not govern",
+    "desired-state, not a minimum floor: a live setting stricter than the baseline is reported as drift, and for rulesets it is protected by the stricter-than-baseline guard (see bootstrap.sh --force-normalize)",
+    "applicability public: free-plan personal accounts only get this control on public repos (rulesets need GitHub Pro on private repos; code scanning, secret scanning and private vulnerability reporting are public-only without paid add-ons)",
+    "machine-local git signing config (docs/repo-settings.md, commit signing section) is out of scope: it is not a repository platform setting reachable through the API"
+  ],
+  "controls": [
+    {
+      "id": "ruleset-main-protection",
+      "kind": "ruleset",
+      "description": "Default branch ruleset: PR required (0 approvals), force-push and deletion blocked, signed commits required, no bypass actors",
+      "applicability": "public",
+      "ruleset_name": "main-protection",
+      "read_endpoint": "repos/{repo}/rulesets",
+      "projection": "{bypass_actors, conditions, enforcement, name, pr: ([.rules[] | select(.type==\"pull_request\") | .parameters | {dismiss_stale_reviews_on_push, require_code_owner_review, require_last_push_approval, required_approving_review_count, required_review_thread_resolution}][0]), rule_types: ([.rules[].type] | sort), target}",
+      "desired": {
+        "bypass_actors": [],
+        "conditions": {"ref_name": {"exclude": [], "include": ["~DEFAULT_BRANCH"]}},
+        "enforcement": "active",
+        "name": "main-protection",
+        "pr": {
+          "dismiss_stale_reviews_on_push": false,
+          "require_code_owner_review": false,
+          "require_last_push_approval": false,
+          "required_approving_review_count": 0,
+          "required_review_thread_resolution": false
+        },
+        "rule_types": ["deletion", "non_fast_forward", "pull_request", "required_signatures"],
+        "target": "branch"
+      },
+      "apply_method": "POST",
+      "apply_endpoint": "repos/{repo}/rulesets",
+      "apply_payload": {
+        "name": "main-protection",
+        "target": "branch",
+        "enforcement": "active",
+        "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+        "rules": [
+          {"type": "pull_request", "parameters": {
+            "required_approving_review_count": 0,
+            "dismiss_stale_reviews_on_push": false,
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": false}},
+          {"type": "non_fast_forward"},
+          {"type": "deletion"},
+          {"type": "required_signatures"}
+        ],
+        "bypass_actors": []
+      }
+    },
+    {
+      "id": "ruleset-release-tags",
+      "kind": "ruleset",
+      "description": "Tag ruleset for refs/tags/v*: deletion, update and force-update blocked; creation stays allowed for release automation",
+      "applicability": "public",
+      "ruleset_name": "release-tags",
+      "read_endpoint": "repos/{repo}/rulesets",
+      "projection": "{bypass_actors, conditions, enforcement, name, rule_types: ([.rules[].type] | sort), target}",
+      "desired": {
+        "bypass_actors": [],
+        "conditions": {"ref_name": {"exclude": [], "include": ["refs/tags/v*"]}},
+        "enforcement": "active",
+        "name": "release-tags",
+        "rule_types": ["deletion", "non_fast_forward", "update"],
+        "target": "tag"
+      },
+      "apply_method": "POST",
+      "apply_endpoint": "repos/{repo}/rulesets",
+      "apply_payload": {
+        "name": "release-tags",
+        "target": "tag",
+        "enforcement": "active",
+        "conditions": {"ref_name": {"include": ["refs/tags/v*"], "exclude": []}},
+        "rules": [
+          {"type": "deletion"},
+          {"type": "update"},
+          {"type": "non_fast_forward"}
+        ],
+        "bypass_actors": []
+      }
+    },
+    {
+      "id": "immutable-releases",
+      "kind": "json",
+      "description": "Published releases and their assets can no longer be modified or deleted",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}/immutable-releases",
+      "projection": "{enabled}",
+      "desired": {"enabled": true},
+      "apply_method": "PUT",
+      "apply_endpoint": "repos/{repo}/immutable-releases"
+    },
+    {
+      "id": "codeql-default-setup",
+      "kind": "json",
+      "description": "CodeQL code scanning, GitHub-managed default setup, default query suite, weekly schedule",
+      "applicability": "public",
+      "applicability_note": "also requires at least one CodeQL-supported language in the repository; apply fails loudly otherwise",
+      "read_endpoint": "repos/{repo}/code-scanning/default-setup",
+      "projection": "{query_suite, schedule, state}",
+      "desired": {"query_suite": "default", "schedule": "weekly", "state": "configured"},
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}/code-scanning/default-setup",
+      "apply_payload": {"state": "configured"}
+    },
+    {
+      "id": "dependabot-alerts",
+      "kind": "status204",
+      "description": "Dependabot vulnerability alerts enabled",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}/vulnerability-alerts",
+      "desired": {"enabled": true},
+      "apply_method": "PUT",
+      "apply_endpoint": "repos/{repo}/vulnerability-alerts"
+    },
+    {
+      "id": "dependabot-security-updates",
+      "kind": "json",
+      "description": "Dependabot security updates (automated security fixes) enabled",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{status: .security_and_analysis.dependabot_security_updates.status}",
+      "desired": {"status": "enabled"},
+      "apply_method": "PUT",
+      "apply_endpoint": "repos/{repo}/automated-security-fixes"
+    },
+    {
+      "id": "secret-scanning",
+      "kind": "json",
+      "description": "GitHub secret scanning enabled",
+      "applicability": "public",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{status: .security_and_analysis.secret_scanning.status}",
+      "desired": {"status": "enabled"},
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}",
+      "apply_payload": {"security_and_analysis": {"secret_scanning": {"status": "enabled"}}}
+    },
+    {
+      "id": "secret-scanning-push-protection",
+      "kind": "json",
+      "description": "Secret scanning push protection enabled",
+      "applicability": "public",
+      "read_endpoint": "repos/{repo}",
+      "projection": "{status: .security_and_analysis.secret_scanning_push_protection.status}",
+      "desired": {"status": "enabled"},
+      "apply_method": "PATCH",
+      "apply_endpoint": "repos/{repo}",
+      "apply_payload": {"security_and_analysis": {"secret_scanning_push_protection": {"status": "enabled"}}}
+    },
+    {
+      "id": "private-vulnerability-reporting",
+      "kind": "json",
+      "description": "Private vulnerability reporting enabled (the SECURITY.md reporting path)",
+      "applicability": "public",
+      "read_endpoint": "repos/{repo}/private-vulnerability-reporting",
+      "projection": "{enabled}",
+      "desired": {"enabled": true},
+      "apply_method": "PUT",
+      "apply_endpoint": "repos/{repo}/private-vulnerability-reporting"
+    },
+    {
+      "id": "actions-workflow-permissions",
+      "kind": "json",
+      "description": "Default GITHUB_TOKEN permissions read-only. can_approve_pull_request_reviews is deliberately NOT governed: forcing it true would loosen GitHub's stricter default on every repo. The corrective call preserves the live value (repos using release-please need it true - set it per repo).",
+      "applicability": "all",
+      "read_endpoint": "repos/{repo}/actions/permissions/workflow",
+      "projection": "{default_workflow_permissions}",
+      "desired": {"default_workflow_permissions": "read"},
+      "apply_method": "PUT",
+      "apply_endpoint": "repos/{repo}/actions/permissions/workflow",
+      "apply_payload": {"default_workflow_permissions": "read"},
+      "apply_preserve": "{can_approve_pull_request_reviews}"
+    }
+  ]
+}
