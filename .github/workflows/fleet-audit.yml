@@ -71,9 +71,8 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Rows are OWNER/REPO and the organization section is keyed by the org
-      # login, so one prefix selects both. Repositories outside the organization
-      # are enumerated for honest reporting but never gate this run.
+      # --all emits only repositories owned by the organization, and the
+      # organization section uses the same login, so one prefix selects both.
       - name: Decide what is in scope
         id: scope
         env:
@@ -111,9 +110,7 @@ jobs:
           {
             echo "The scheduled fleet audit found drift in \`$ORG\`."
             echo
-            echo "**In scope:** rows beginning \`$ORG/\` and the organization section."
-            echo "Rows for any other owner are informational - repositories outside the"
-            echo "organization are deliberately ungoverned and never gate this run."
+            echo "**In scope:** \`--all\` emits only repository rows beginning \`$ORG/\`, plus the organization section."
             echo
             echo "Correct one repository with:"
             echo

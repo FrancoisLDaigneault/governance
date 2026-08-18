@@ -1,6 +1,6 @@
 """Both CLI entry points end to end, against a fully mocked gh layer."""
 
-import pytest  # pyright: ignore[reportMissingImports]
+import pytest
 from conftest import ORG_IDS, FakeGh, compliant_rules, fail, ok
 
 from governance_tools import audit as audit_cli

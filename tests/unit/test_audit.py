@@ -4,7 +4,7 @@ The invariant under test: a repository that cannot be fully checked must never
 let the audit exit 0.
 """
 
-import pytest  # pyright: ignore[reportMissingImports]
+import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
 from governance_tools.audit import audit, main, resolve_orgs, resolve_repos, statuses_for
@@ -58,7 +58,7 @@ def test_all_is_scoped_to_fld_forge() -> None:
     assert resolve_repos(gh, ["--all"]) == ["fld-forge/a", "fld-forge/z"]
     assert resolve_orgs(gh, ["--all"]) == ["fld-forge"]
     assert len(gh.calls) == 1
-    assert "repo list fld-forge" in gh.calls[0].joined
+    assert gh.calls[0].args[:3] == ("repo", "list", "fld-forge")
 
 
 def test_resolve_repos_all_handles_listing_failure() -> None:
