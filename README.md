@@ -11,18 +11,15 @@
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/fld-forge/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/fld-forge/governance)
 
-This repository governs GitHub **repository and organization settings** across
-the fleet: it applies and audits them from a single machine-readable baseline.
-
-It turns a hand-maintained platform-settings inventory into an executable
-desired-state baseline for every repository and organization owned by the
-account.
+This repository governs GitHub **repository and organization settings** for the
+`fld-forge` fleet from a single machine-readable baseline. Repositories outside
+that organization are out of scope.
 
 | File | Role |
 | --- | --- |
 | `src/governance_tools/baseline.json` | Machine-readable desired state: 25 controls (14 repository-scope, 11 organization-scope), each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
 | `scripts/bootstrap.py` | Applies the baseline to one repository, or to one organization with `--org`. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant target changes nothing and exits 0. |
-| `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own, plus an organization section for every org you belong to). Exit 1 on any drift, error or skip. |
+| `scripts/audit.py` | Compliance matrix for `fld-forge` (`--all` = every non-archived repository plus the organization section). Exit 1 on any drift, error or skip. |
 | `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `check` (per-control classification), `bootstrap`, `org` and `audit` (orchestration), `matrix` and `report` (rendering). |
 
 ## Setup
@@ -63,9 +60,9 @@ uv run python scripts/bootstrap.py --org ORG --apply
 A control is keyed by a repository (the default) or by an organization. The two
 groups never mix: loading validates that a control's endpoints carry the
 placeholder its scope requires, so an organization control cannot aim at a
-repository endpoint. `--all` renders the repository matrix first, then an
-organization section for every organization the authenticated user belongs to;
-explicit `OWNER/REPO` arguments audit exactly what was asked for.
+repository endpoint. `--all` renders the `fld-forge` repository matrix first,
+then the `fld-forge` organization section; explicit `OWNER/REPO` arguments audit
+exactly what was asked for.
 
 Three organization controls are **manual**: the security configuration, the
 member privileges GitHub exposes read-only, and the two-factor requirement. The
@@ -172,13 +169,9 @@ reports clean or drifting, and fails only when the audit itself could not run.
 
 `.github/workflows/fleet-audit.yml` is kept but **dormant**. It requires a
 repository secret that does not exist and fails loudly without it, by design - an
-audit that silently reported an empty fleet would read as a clean one. Enabling
-it needs a *classic* token: a fine-grained one answers `GET /user/orgs` with an
-empty list and so cannot enumerate the fleet at all.
-
-Only the organization gates a run: repositories under other owners are
-enumerated for honest reporting and never acted on. The re-create command, the
-exit-code policy and the credential evidence are in
+audit that silently reported an empty fleet would read as a clean one. A
+fine-grained token scoped read-only to `fld-forge` can enumerate the fixed fleet.
+The re-create command, exit-code policy and credential guidance are in
 [`docs/scheduled-audit.md`](docs/scheduled-audit.md).
 
 ## Org-migration note
@@ -195,8 +188,8 @@ org objects reproduce this baseline.
 
 ## Permanent test bed
 
-`governance-canary` (public scratch repo under the owner) exists to exercise
-bootstrap/audit changes end to end without touching real repos. Keep it, or
-delete it and recreate it with `gh repo create governance-canary --public
+`governance-canary` (public scratch repo outside `fld-forge`) can exercise an
+explicit bootstrap target without touching real repos; `--all` never includes
+it. Keep it, or delete it and recreate it with `gh repo create governance-canary --public
 --add-readme` (plus one committed Python file so CodeQL default setup has a
 supported language) next time a live proof is needed.

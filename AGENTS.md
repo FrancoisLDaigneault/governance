@@ -1,8 +1,8 @@
 # AGENTS.md - operating manual for coding agents
 
 This repository is the governance baseline as code: it applies and audits
-GitHub **repository and organization settings** across a fleet. It governs no
-other product, and no other product governs it.
+GitHub **repository and organization settings** for the `fld-forge` organization.
+Repositories outside that organization are not part of its fleet.
 
 Layout: `src/governance_tools/` (`baseline` loads and validates
 `baseline.json`, `gh` is the only IO, `compare` is pure comparison plus the
@@ -93,4 +93,4 @@ carries its assets.
 - Repo-local SSH commit signing is configured (`commit.gpgsign true`);
   commits sign automatically - do not disable or bypass it.
 - A fleet audit costs roughly a dozen API calls per repository; `--all`
-  enumerates every non-archived repo you own.
+  enumerates every non-archived repository in `fld-forge`, and no other owner.

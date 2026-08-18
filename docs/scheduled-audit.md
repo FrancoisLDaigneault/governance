@@ -2,9 +2,8 @@
 
 The audit runs weekly from a **local scheduled task**. The GitHub-hosted
 workflow is kept, but dormant: it needs a credential that cannot be created
-without a browser, and the obvious least-privilege choice for it does not work
-at all. Both facts are below, so the choice can be revisited with the evidence
-rather than re-derived.
+without a browser. The required scope is recorded below so the choice can be
+revisited without being re-derived.
 
 ## The mechanism in use: a local scheduled task
 
@@ -79,28 +78,16 @@ that silently reports an empty fleet would read as a clean one.
 It stays for the day cloud visibility is wanted: a run summary containing the
 matrix, and a single tracking issue kept in step with organization drift.
 
-### Why a fine-grained token cannot run it
+### Credential scope
 
-The fleet enumeration asks `GET /user/orgs` for the organizations to audit.
+The fleet is fixed to `fld-forge`; enumeration does not call `/user` or
+`/user/orgs`. A fine-grained personal access token scoped read-only to all
+repositories in that organization can therefore run the audit without gaining
+access to repositories under any other owner.
 
-- A **fine-grained** personal access token answers that call with an **empty
-  list**. It is not an error, so nothing is raised: the organization simply
-  disappears from the matrix, and the whole in-scope posture reads as clean.
-  A fine-grained token therefore cannot enumerate the fleet, whatever
-  permissions it is granted.
-- A **GitHub App installation token** does not support the `/user` endpoints at
-  all. Apps act as an installation, not as a user, so there is no authenticated
-  user whose organizations could be listed.
-
-Anyone enabling the hosted workflow therefore needs a **classic** personal
-access token with the `repo` and `read:org` scopes, which answers `/user/orgs`
-reliably. That is a broader credential than the read-only, per-resource grant a
-fine-grained token would have given - one of the reasons the local task is
-preferred.
-
-The workflow already refuses the failure mode this creates: it fails with a
-named error when the matrix carries no row for the organization, so a token that
-cannot enumerate produces a red run rather than a false all-clear.
+The workflow fails with a named error when the matrix carries no row for
+`fld-forge`, so a missing or insufficient credential produces a red run rather
+than a false all-clear.
 
 ### What the audit reads
 
@@ -108,10 +95,8 @@ The authoritative list is `read_endpoint` in
 `src/governance_tools/baseline.json`. Whatever the credential, it only ever
 needs to **read**: nothing in the audit path writes.
 
-## In scope versus informational
+## Scope
 
-The audit enumerates every repository the credential can see, including personal
-ones. That is deliberate honest reporting, but only the organization is
-governed: rows beginning with the organization login, plus the organization
-section, are what matter. Repositories under any other owner appear in the
-matrix and are never acted on.
+The audit enumerates non-archived repositories owned by `fld-forge` and the
+`fld-forge` organization controls. Repositories under every other owner are out
+of scope and never appear in the matrix.
