@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/FrancoisLDaigneault/governance/compare/v0.2.0...v0.3.0) (2026-08-18)
+
+
+### Features
+
+* enumerate the fleet across the user and every org ([#4](https://github.com/FrancoisLDaigneault/governance/issues/4)) ([3509104](https://github.com/FrancoisLDaigneault/governance/commit/3509104b173988ae19b5d536a0edac6b62d861f8))
+
 ## [0.2.0](https://github.com/FrancoisLDaigneault/governance/compare/v0.1.0...v0.2.0) (2026-08-18)
 
 
