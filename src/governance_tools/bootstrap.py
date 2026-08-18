@@ -1,4 +1,4 @@
-"""Apply the governance baseline to one repository.
+"""Apply the governance baseline to one repository or one organization.
 
 Dry-run by default: `--apply` is required for any mutation, and
 `--force-normalize` is the only way past the stricter-than-baseline guard.
@@ -6,27 +6,21 @@ Dry-run by default: `--apply` is required for any mutation, and
 
 import sys
 
-from governance_tools.baseline import Control, load_controls
-from governance_tools.compare import canon, stricter_extras
-from governance_tools.controls import apply_control, fetch_ruleset, read_live
-from governance_tools.gh import Gh, GhClient, is_valid_repo, repo_field
+from governance_tools.baseline import Control, load_controls, split_by_scope
+from governance_tools.check import check_control
+from governance_tools.gh import Gh, GhClient, is_valid_org, is_valid_repo, repo_field
+from governance_tools.org import check_org
 from governance_tools.report import (
-    APPLIED,
-    DRIFT,
-    ERR,
-    FAIL,
-    NA,
-    OK,
-    STRICT,
-    ControlResult,
     Mode,
     RepoReport,
     exit_code,
     render,
+    render_org,
+    results_exit_code,
     use_unix_newlines,
 )
 
-USAGE = "usage: bootstrap.py OWNER/REPO [--apply] [--force-normalize]"
+USAGE = "usage: bootstrap.py (OWNER/REPO | --org ORG) [--apply] [--force-normalize]"
 
 
 def repo_facts(client: GhClient, repo: str) -> tuple[str, bool, str]:
@@ -38,79 +32,6 @@ def repo_facts(client: GhClient, repo: str) -> tuple[str, bool, str]:
     if not archived.ok:
         return "", False, archived.first_error_line()
     return visibility.stdout.strip(), archived.stdout.strip() == "true", ""
-
-
-def _stricter_guard(
-    client: GhClient, control: Control, repo: str, ruleset_id: str
-) -> ControlResult | None:
-    """Refuse to lower a live ruleset that is stricter than the baseline."""
-    try:
-        live_ruleset = fetch_ruleset(client, repo, ruleset_id)
-    except RuntimeError:
-        return ControlResult(
-            control.id, ERR, ("stricter-than-baseline check failed; refusing to normalize",)
-        )
-    extras = stricter_extras(live_ruleset, control.desired)
-    if not extras:
-        return None
-    return ControlResult(
-        control.id,
-        STRICT,
-        (
-            "live ruleset is stricter than the baseline; skipped",
-            *extras,
-            "re-run with --force-normalize to overwrite it with the baseline",
-        ),
-    )
-
-
-def _apply_and_recheck(
-    client: GhClient, control: Control, repo: str, ruleset_id: str, desired: str
-) -> ControlResult:
-    result = apply_control(client, control, repo, ruleset_id)
-    if not result.ok:
-        message = " ".join(result.combined.strip().splitlines()[:2])
-        return ControlResult(control.id, FAIL, (f"apply error: {message}",))
-    after = read_live(client, control, repo)
-    if after.error:
-        return ControlResult(
-            control.id, ERR, (f"applied, but the re-check read failed: {after.error}",)
-        )
-    if after.canonical == desired:
-        return ControlResult(control.id, APPLIED)
-    return ControlResult(
-        control.id,
-        FAIL,
-        (
-            "applied but live state still differs",
-            f"desired: {desired}",
-            f"live:    {after.canonical}",
-        ),
-    )
-
-
-def check_control(
-    client: GhClient, control: Control, repo: str, visibility: str, mode: Mode
-) -> ControlResult:
-    """Classify one control, applying the corrective call when asked."""
-    if not control.applies_to(visibility):
-        detail = f"skipped: public-only control on a {visibility} repo (needs a paid plan)"
-        return ControlResult(control.id, NA, (detail,))
-    live = read_live(client, control, repo)
-    if live.error:
-        return ControlResult(control.id, ERR, (f"read failed: {live.error}",))
-    desired = canon(control.desired)
-    if live.canonical == desired:
-        return ControlResult(control.id, OK)
-    if control.kind == "ruleset" and live.ruleset_id and not mode.force:
-        guard = _stricter_guard(client, control, repo, live.ruleset_id)
-        if guard is not None:
-            return guard
-    if not mode.apply:
-        return ControlResult(
-            control.id, DRIFT, (f"desired: {desired}", f"live:    {live.canonical}")
-        )
-    return _apply_and_recheck(client, control, repo, live.ruleset_id, desired)
 
 
 def check_repo(
@@ -127,16 +48,9 @@ def check_repo(
     return RepoReport(repo, visibility=visibility, results=results)
 
 
-def _parse_args(args: list[str]) -> tuple[str, bool, bool] | None:
-    if not args or args[0].startswith("--"):
-        return None
-    # Shape-checked before it reaches an API path template: `../../orgs/acme`
-    # would otherwise resolve to an org endpoint once `..` segments normalize.
-    if not is_valid_repo(args[0]):
-        print(f"not a repository name (expected OWNER/REPO): {args[0]!r}", file=sys.stderr)
-        return None
+def _parse_flags(args: list[str]) -> tuple[bool, bool] | None:
     apply = force = False
-    for arg in args[1:]:
+    for arg in args:
         if arg == "--apply":
             apply = True
         elif arg == "--force-normalize":
@@ -144,7 +58,61 @@ def _parse_args(args: list[str]) -> tuple[str, bool, bool] | None:
         else:
             print(f"unknown argument: {arg}", file=sys.stderr)
             return None
-    return args[0], apply, force
+    return apply, force
+
+
+def _parse_target(args: list[str]) -> tuple[str, str, list[str]] | None:
+    """(scope, target, remaining arguments); None on a usage error.
+
+    Both names are shape-checked before they reach an API path template:
+    `../../orgs/acme` would otherwise resolve to a different endpoint once the
+    `..` segments normalize, and the two shapes cannot be confused because an
+    organization login carries no slash.
+    """
+    if args[0] == "--org":
+        org = args[1] if len(args) > 1 else ""
+        if not is_valid_org(org):
+            print(f"not an organization login: {org!r}", file=sys.stderr)
+            return None
+        return "org", org, args[2:]
+    if args[0].startswith("--"):
+        return None
+    if not is_valid_repo(args[0]):
+        print(f"not a repository name (expected OWNER/REPO): {args[0]!r}", file=sys.stderr)
+        return None
+    return "repo", args[0], args[1:]
+
+
+def _parse_args(args: list[str]) -> tuple[str, str, bool, bool] | None:
+    """(scope, target, apply, force); None on a usage error."""
+    if not args:
+        return None
+    parsed = _parse_target(args)
+    if parsed is None:
+        return None
+    scope, target, rest = parsed
+    flags = _parse_flags(rest)
+    if flags is None:
+        return None
+    return scope, target, flags[0], flags[1]
+
+
+def _run_org(client: GhClient, controls: list[Control], org: str, mode: Mode) -> int:
+    report = check_org(client, controls, org, mode)
+    if report.error:
+        print(f"ERROR: {org}: {report.error}", file=sys.stderr)
+        return 1
+    print("\n".join(render_org(report, apply=mode.apply)))
+    return results_exit_code(report.results)
+
+
+def _run_repo(client: GhClient, controls: list[Control], repo: str, mode: Mode) -> int:
+    report = check_repo(client, controls, repo, mode)
+    if report.error:
+        print(f"ERROR: {report.repo}: {report.error}", file=sys.stderr)
+        return 1
+    print("\n".join(render(report, apply=mode.apply)))
+    return exit_code(report)
 
 
 def main(argv: list[str] | None = None, client: GhClient | None = None) -> int:
@@ -153,10 +121,10 @@ def main(argv: list[str] | None = None, client: GhClient | None = None) -> int:
         print(USAGE, file=sys.stderr)
         return 2
     use_unix_newlines()
-    repo, apply, force = parsed
-    report = check_repo(client or Gh(), load_controls(), repo, Mode(apply=apply, force=force))
-    if report.error:
-        print(f"ERROR: {report.repo}: {report.error}", file=sys.stderr)
-        return 1
-    print("\n".join(render(report, apply=apply)))
-    return exit_code(report)
+    scope, target, apply, force = parsed
+    gh_client = client or Gh()
+    repo_controls, org_controls = split_by_scope(load_controls())
+    mode = Mode(apply=apply, force=force)
+    if scope == "org":
+        return _run_org(gh_client, org_controls, target, mode)
+    return _run_repo(gh_client, repo_controls, target, mode)

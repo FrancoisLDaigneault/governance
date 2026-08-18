@@ -1,7 +1,7 @@
 """Both CLI entry points end to end, against a fully mocked gh layer."""
 
 import pytest
-from conftest import FakeGh, compliant_rules, fail, ok
+from conftest import ORG_IDS, FakeGh, compliant_rules, fail, ok
 
 from governance_tools import audit as audit_cli
 from governance_tools import bootstrap as bootstrap_cli
@@ -95,14 +95,22 @@ def test_audit_never_exits_0_with_an_unaudited_repo(
     out = capsys.readouterr().out
     assert code == 1
     assert f"total unchecked/skipped cells: {len(controls)}" in out
-    assert "repositories that could not be fully audited" in out
+    assert "targets that could not be fully audited" in out
     assert "o/missing" in out
 
 
 def test_audit_all_enumerates_the_fleet(
     controls: list[Control], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    gh = FakeGh(rules=[("api user", ok("me")), ("repo list", ok("me/one\n"))])
+    # "api user" is a substring of "api user/orgs", so the org listing is scripted
+    # explicitly: this fleet has no organizations and only the repo matrix renders.
+    gh = FakeGh(
+        rules=[
+            ("api user/orgs", ok("")),
+            ("api user", ok("me")),
+            ("repo list", ok("me/one\n")),
+        ]
+    )
     gh.rules += compliant_rules(controls)
     assert audit_cli.main(["--all"], client=gh) == 0
     assert "me/one" in capsys.readouterr().out
@@ -133,3 +141,87 @@ def test_audit_survives_a_repo_returning_garbage(
     assert rows["o/broken"].count("ERR") == 1, "exactly one cell is lost"
     assert "ERR" not in rows["o/sane"], "the healthy repo is unaffected"
     assert "total unchecked/skipped cells: 1" in out
+
+
+def _fleet_with_org(controls: list[Control], org_controls: list[Control]) -> FakeGh:
+    """One repo under an org, plus that org's own state, all compliant."""
+    return FakeGh(
+        rules=[
+            ("api user/orgs", ok("acme\n")),
+            ("api user", ok("me")),
+            ("repo list", ok("acme/one\n")),
+            ("--jq .login", ok("acme")),
+            *compliant_rules(controls),
+            *compliant_rules(org_controls, ruleset_prefix=ORG_IDS),
+        ]
+    )
+
+
+def test_audit_all_renders_both_sections(
+    controls: list[Control], org_controls: list[Control], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--all must audit organization state, not just repositories."""
+    gh = _fleet_with_org(controls, org_controls)
+    code = audit_cli.main(["--all"], client=gh)
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "== organization controls ==" in out
+    assert "acme/one" in out
+    assert any(line.startswith("org ") for line in out.splitlines())
+    for control in org_controls:
+        assert control.id in out
+    assert gh.mutations == [], "the audit must never mutate anything"
+
+
+def test_audit_org_drift_fails_the_run(
+    controls: list[Control], org_controls: list[Control], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A compliant repository fleet must not hide drifted organization state."""
+    gh = _fleet_with_org(controls, org_controls)
+    gh.override("{two_factor_requirement_enabled}", ok('{"two_factor_requirement_enabled":false}'))
+    code = audit_cli.main(["--all"], client=gh)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "total drift cells: 1" in out
+
+
+def test_audit_never_exits_0_with_an_unaudited_org(
+    controls: list[Control], org_controls: list[Control], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An org that cannot be read renders ERR cells and fails the run."""
+    gh = _fleet_with_org(controls, org_controls)
+    gh.override("orgs/acme --jq .login", fail("HTTP 403: Forbidden"))
+    code = audit_cli.main(["--all"], client=gh)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert f"total unchecked/skipped cells: {len(org_controls)}" in out
+    assert "targets that could not be fully audited" in out
+
+
+def test_explicit_repositories_do_not_pull_in_org_state(
+    controls: list[Control], compliant: FakeGh, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A targeted audit audits exactly what was asked for."""
+    assert audit_cli.main(["o/r"], client=compliant) == 0
+    assert "organization controls" not in capsys.readouterr().out
+
+
+def test_audit_org_enumeration_failure_is_a_hard_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A silently empty org list would drop the section and look clean."""
+    gh = FakeGh(rules=[("api user/orgs", ok("acme\n")), ("api user", ok("me"))])
+    gh.rules.append(("repo list", ok("acme/one\n")))
+    calls = {"n": 0}
+
+    class FlakyOrgs(FakeGh):
+        def run(self, args, stdin=None):  # type: ignore[no-untyped-def]
+            if "user/orgs" in " ".join(args):
+                calls["n"] += 1
+                if calls["n"] > 1:
+                    return fail("HTTP 500")
+            return super().run(args, stdin)
+
+    flaky = FlakyOrgs(rules=gh.rules)
+    assert audit_cli.main(["--all"], client=flaky) == 2
+    assert "cannot list organizations" in capsys.readouterr().err
