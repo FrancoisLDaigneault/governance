@@ -59,6 +59,76 @@ def test_public_only_control_is_na_on_private() -> None:
     assert "public-only control on a private repo" in result.details[0]
 
 
+PROBED = Control(
+    id="probed",
+    kind="json",
+    applicability="all",
+    desired={"state": "configured"},
+    apply_method="PATCH",
+    apply_endpoint="repos/{repo}/scan",
+    read_endpoint="repos/{repo}/scan",
+    projection="{state}",
+    na_when=".languages | length == 0",
+    na_reason="no supported language in this repository",
+)
+
+
+def _probed_gh(probe: GhResult, state: GhResult | None = None) -> FakeGh:
+    """The probe filter and the projection are distinct patterns, so order is free."""
+    rules = [(".languages | length == 0", probe)]
+    if state is not None:
+        rules.append(("{state}", state))
+    return FakeGh(rules=rules)
+
+
+def test_probe_true_is_na_and_never_reads_state() -> None:
+    """A control that cannot govern the target is NA, and costs one call, not two."""
+    gh = _probed_gh(ok("true"))
+    result = check_control(gh, PROBED, "o/r", "public", Mode(apply=True))
+    assert result.status == NA
+    assert result.details == ("skipped: no supported language in this repository",)
+    assert len(gh.calls) == 1, "NA must short-circuit the state read"
+    assert gh.mutations == []
+
+
+def test_probe_false_still_drifts_when_the_setting_is_off() -> None:
+    """The inverse case: a governable target must not be excused by the probe."""
+    gh = _probed_gh(ok("false"), ok('{"state":"not-configured"}'))
+    result = check_control(gh, PROBED, "o/r", "public", Mode())
+    assert result.status == DRIFT
+    assert gh.mutations == []
+
+
+def test_probe_false_and_matching_state_is_ok() -> None:
+    gh = _probed_gh(ok("false"), ok('{"state":"configured"}'))
+    assert check_control(gh, PROBED, "o/r", "public", Mode()).status == OK
+
+
+def test_probe_failure_is_err_and_never_writes() -> None:
+    """A probe that cannot run must not decide between NA and drift."""
+    gh = _probed_gh(fail("HTTP 403"), ok('{"state":"not-configured"}'))
+    result = check_control(gh, PROBED, "o/r", "public", Mode(apply=True))
+    assert result.status == ERR
+    assert "applicability probe failed" in result.details[0]
+    assert gh.mutations == [], "a probe error must never fall through to a write"
+
+
+def test_probe_answering_neither_true_nor_false_is_err() -> None:
+    gh = _probed_gh(ok("null"), ok('{"state":"not-configured"}'))
+    result = check_control(gh, PROBED, "o/r", "public", Mode(apply=True))
+    assert result.status == ERR
+    assert "expected true or false" in result.details[0]
+    assert gh.mutations == []
+
+
+def test_visibility_gate_precedes_the_probe() -> None:
+    """A public-only control on a private repo must not spend a probe call."""
+    probed_public = Control(**{**PROBED.__dict__, "applicability": "public"})
+    gh = _probed_gh(ok("false"))
+    assert check_control(gh, probed_public, "o/r", "private", Mode()).status == NA
+    assert gh.calls == []
+
+
 def test_matching_state_is_ok() -> None:
     gh = FakeGh(rules=[("repos/o/r/x", ok('{"enabled":true}'))])
     assert check_control(gh, PUBLIC_ONLY, "o/r", "public", Mode()).status == OK
