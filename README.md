@@ -97,7 +97,7 @@ OpenSSF Scorecard analyse the repository on their own cadence.
 | [`SECURITY.md`](SECURITY.md) | Threat model, reporting, release-asset verification |
 | [`NORTHSTAR.md`](NORTHSTAR.md) | Measured steering KPIs, one per axis |
 | [`docs/adr/`](docs/adr/README.md) | Architecture decision records |
-| [`docs/scheduled-audit.md`](docs/scheduled-audit.md) | The weekly drift audit: its token, and what it gates |
+| [`docs/scheduled-audit.md`](docs/scheduled-audit.md) | The weekly drift audit: how it is scheduled, and what it gates |
 
 ## Controls
 
@@ -164,19 +164,21 @@ matrix - never dropped from the report. A fleet audit therefore cannot exit
 
 ## Scheduled audit
 
-`.github/workflows/fleet-audit.yml` runs the fleet and organization audit every
-Wednesday at 07:00 UTC, and on demand. The matrix goes to the run summary every
-time; organization drift opens a single tracking issue, rewritten on each run
-and closed by the workflow once the organization is clean.
+The audit runs weekly from a **local scheduled task** (`governance-fleet-audit`,
+Wednesdays at 09:00 local), which calls `scripts/weekly-audit.ps1`. It writes the
+whole matrix to a timestamped log under `governance-audit/` and keeps the newest
+twelve. Drift is a finding, not a failure: the wrapper succeeds whether the audit
+reports clean or drifting, and fails only when the audit itself could not run.
 
-It needs a read-only token in the repository secret `GOVERNANCE_AUDIT_TOKEN`,
-because a workflow's own `GITHUB_TOKEN` cannot read sibling repositories or
-organization state. Without it the workflow fails with a named error rather
-than reporting an empty, clean-looking fleet.
+`.github/workflows/fleet-audit.yml` is kept but **dormant**. It requires a
+repository secret that does not exist and fails loudly without it, by design - an
+audit that silently reported an empty fleet would read as a clean one. Enabling
+it needs a *classic* token: a fine-grained one answers `GET /user/orgs` with an
+empty list and so cannot enumerate the fleet at all.
 
-Only the organization gates the run: repositories under other owners are
-enumerated for honest reporting and never acted on. Token permissions, the
-enumeration caveat and the verification steps are in
+Only the organization gates a run: repositories under other owners are
+enumerated for honest reporting and never acted on. The re-create command, the
+exit-code policy and the credential evidence are in
 [`docs/scheduled-audit.md`](docs/scheduled-audit.md).
 
 ## Org-migration note

@@ -1,80 +1,117 @@
 # The scheduled fleet audit
 
-`.github/workflows/fleet-audit.yml` runs `scripts/audit.py --all` every
-Wednesday at 07:00 UTC, and on demand through **Actions -> Fleet audit -> Run
-workflow**. It publishes the matrix to the run summary every time, and keeps a
-single tracking issue in step with organization drift: opened or rewritten when
-the organization drifts, closed by the workflow once it is clean again.
+The audit runs weekly from a **local scheduled task**. The GitHub-hosted
+workflow is kept, but dormant: it needs a credential that cannot be created
+without a browser, and the obvious least-privilege choice for it does not work
+at all. Both facts are below, so the choice can be revisited with the evidence
+rather than re-derived.
 
-## Why it needs its own token
+## The mechanism in use: a local scheduled task
 
-A workflow's `GITHUB_TOKEN` is scoped to the repository that runs it. The audit
-reads *other* repositories' settings and the organization's own state, so that
-token cannot do the job: it would produce an empty fleet, which is worse than no
-audit at all because an empty fleet reads as a clean one.
+| | |
+| --- | --- |
+| Task name | `governance-fleet-audit` |
+| Schedule | Weekly, Wednesday 09:00 local time |
+| Runs | `scripts/weekly-audit.ps1`, which calls `scripts/audit.py --all` |
+| Log | `C:\Users\franc\governance-audit\<yyyy-MM-dd_HHmmss>.log` |
+| History | the newest 12 logs, about a quarter at a weekly cadence |
 
-The workflow therefore requires a repository secret named
-**`GOVERNANCE_AUDIT_TOKEN`**, and fails with a named error when it is missing.
-The token is **read-only**: nothing in this workflow corrects drift, it only
-reports it. Corrections stay a deliberate `bootstrap.py ... --apply` run.
+The hour is deliberate. The hosted workflow was scheduled for 07:00 UTC, which
+is the middle of the night locally; a local task has to run when the machine is
+plausibly on, so it moved into working hours.
 
-## Creating the token
+### Re-creating it
 
-Create it at **Settings -> Developer settings -> Personal access tokens**.
+The task is machine state, not a file, so it is not restored by cloning this
+repository. After a machine rebuild, clone the repository and run:
 
-A **fine-grained** token is the least-privilege choice. Set the resource owner
-to the organization, grant it **all repositories**, and give it read-only:
-
-| Scope | Permission | What it is read for |
-| --- | --- | --- |
-| Repository | Metadata: Read | repository enumeration, visibility, archived flag |
-| Repository | Administration: Read | rulesets, immutable releases, merge methods, branch cleanup, wiki/projects, web sign-off, Actions workflow permissions, private vulnerability reporting |
-| Repository | Code scanning alerts: Read | CodeQL default-setup state |
-| Repository | Secret scanning alerts: Read | secret scanning and push protection state |
-| Repository | Dependabot alerts: Read | Dependabot alerts and security updates state |
-| Organization | Administration: Read | organization rulesets, Actions policy and retention, member privileges, two-factor requirement, security configuration defaults |
-| Organization | Custom properties: Read | the `tier` property schema |
-
-The authoritative list of what is read is `read_endpoint` in
-`src/governance_tools/baseline.json`; the table above maps those endpoints onto
-permission names, and permission names are the part GitHub renames from time to
-time.
-
-**One call decides whether this works at all.** The fleet enumeration asks
-`GET /user/orgs` for the organizations to audit. If the token cannot answer it,
-the audit sees only personal repositories, the organization section disappears,
-and the whole in-scope posture would silently read as clean. The workflow
-refuses that outcome: it fails with a named error when the matrix carries no row
-for the organization. If that error appears, use a **classic** token with the
-`repo` and `read:org` scopes instead, which answers `/user/orgs` reliably.
-
-Recommended expiry: **90 days**. Longer trades away the one thing a read-only
-token still costs you if it leaks - a bounded lifetime - and the renewal is a
-two-minute job the failing workflow will remind you about.
-
-## Verifying it before you trust it
-
-Store the token as the repository secret `GOVERNANCE_AUDIT_TOKEN`, then run the
-workflow by hand (**Run workflow**) rather than waiting a week. A good run:
-
-- publishes a matrix that contains a row for every organization repository and
-  an `== organization controls ==` section;
-- either reports `organization clean`, or opens the tracking issue.
-
-To check the token from a shell before storing it:
-
-```bash
-GH_TOKEN=<token> gh api user/orgs --jq '.[].login'   # must list the organization
-GH_TOKEN=<token> uv run python scripts/audit.py --all
+```bat
+schtasks /Create /TN "governance-fleet-audit" ^
+  /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\franc\governance\scripts\weekly-audit.ps1" ^
+  /SC WEEKLY /D WED /ST 09:00 /F
 ```
+
+The wrapper resolves `uv`, the repository and the log directory as absolute
+paths, because a scheduled task inherits neither the user's `PATH` nor a useful
+working directory. Those paths are this machine's layout; adjust them in
+`scripts/weekly-audit.ps1` if the repository or `uv` moves.
+
+Prove it without waiting a week:
+
+```bat
+schtasks /Run /TN "governance-fleet-audit"
+schtasks /Query /TN "governance-fleet-audit" /FO LIST /V
+```
+
+A healthy run leaves `Last Result: 0` and a new log file whose tail carries the
+organization section, the drift total and the audit's own exit code.
+
+### Drift is a finding, not a failure
+
+The audit exits 1 when it finds drift. The wrapper reports success for both 0
+(clean) and 1 (drift), and fails only for 2 and above - a usage error, or the
+audit refusing to report a partial fleet.
+
+Mapping drift to a failing task would be worse than useless here: the
+organization carries two controls that only a human can clear, so the task would
+sit permanently red, and a genuinely broken audit would be indistinguishable
+from an ordinary drifting one. `Last Result` answers whether the audit **ran**;
+the log answers what it **found**.
+
+### What it does not do
+
+- It runs only while the machine is on and the user session exists - the same
+  limitation as the daily configuration backup task.
+- It reports; it never corrects. Corrections stay a deliberate
+  `bootstrap.py OWNER/REPO --apply`.
+- The result stays local. There is no issue, no notification: reading the log is
+  the interface.
+
+## The dormant hosted workflow
+
+`.github/workflows/fleet-audit.yml` is still in the repository, scheduled for
+Wednesdays at 07:00 UTC and available through **Actions -> Fleet audit -> Run
+workflow**. It is **not active**: it requires a repository secret named
+`GOVERNANCE_AUDIT_TOKEN`, that secret does not exist, and the workflow fails
+with a named error when it is missing. That failure is the design - an audit
+that silently reports an empty fleet would read as a clean one.
+
+It stays for the day cloud visibility is wanted: a run summary containing the
+matrix, and a single tracking issue kept in step with organization drift.
+
+### Why a fine-grained token cannot run it
+
+The fleet enumeration asks `GET /user/orgs` for the organizations to audit.
+
+- A **fine-grained** personal access token answers that call with an **empty
+  list**. It is not an error, so nothing is raised: the organization simply
+  disappears from the matrix, and the whole in-scope posture reads as clean.
+  A fine-grained token therefore cannot enumerate the fleet, whatever
+  permissions it is granted.
+- A **GitHub App installation token** does not support the `/user` endpoints at
+  all. Apps act as an installation, not as a user, so there is no authenticated
+  user whose organizations could be listed.
+
+Anyone enabling the hosted workflow therefore needs a **classic** personal
+access token with the `repo` and `read:org` scopes, which answers `/user/orgs`
+reliably. That is a broader credential than the read-only, per-resource grant a
+fine-grained token would have given - one of the reasons the local task is
+preferred.
+
+The workflow already refuses the failure mode this creates: it fails with a
+named error when the matrix carries no row for the organization, so a token that
+cannot enumerate produces a red run rather than a false all-clear.
+
+### What the audit reads
+
+The authoritative list is `read_endpoint` in
+`src/governance_tools/baseline.json`. Whatever the credential, it only ever
+needs to **read**: nothing in the audit path writes.
 
 ## In scope versus informational
 
-The audit enumerates every repository the token can see, including personal
+The audit enumerates every repository the credential can see, including personal
 ones. That is deliberate honest reporting, but only the organization is
 governed: rows beginning with the organization login, plus the organization
-section, decide whether the run fails and whether the tracking issue opens.
-Repositories under any other owner appear in the matrix and are never acted on.
-
-The workflow derives the organization from `github.repository_owner`, so nothing
-here is hardcoded to one name.
+section, are what matter. Repositories under any other owner appear in the
+matrix and are never acted on.
