@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/fld-forge/governance/compare/v0.5.0...v0.6.0) (2026-08-18)
+
+
+### Features
+
+* probe CodeQL applicability live, and schedule the drift audit ([#14](https://github.com/fld-forge/governance/issues/14)) ([d640ee6](https://github.com/fld-forge/governance/commit/d640ee60b10c06e6c300ebba1722b7b57d76e0e6))
+
 ## [0.5.0](https://github.com/fld-forge/governance/compare/v0.4.0...v0.5.0) (2026-08-18)
 
 
