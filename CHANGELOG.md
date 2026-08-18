@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/fld-forge/governance/compare/v0.4.0...v0.5.0) (2026-08-18)
+
+
+### Features
+
+* audit and apply organization-scope controls ([#12](https://github.com/fld-forge/governance/issues/12)) ([29c38ba](https://github.com/fld-forge/governance/commit/29c38baefd80e97bae1d508bf00ef4625115a1c5))
+
 ## [0.4.0](https://github.com/fld-forge/governance/compare/v0.3.2...v0.4.0) (2026-08-18)
 
 
