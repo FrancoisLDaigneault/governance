@@ -295,3 +295,18 @@ def test_archived_read_failure_is_reported() -> None:
 
 def test_main_accepts_force_normalize(compliant: FakeGh) -> None:
     assert main(["o/r", "--apply", "--force-normalize"], client=compliant) == 0
+
+
+def test_main_rejects_a_path_traversal_repo_name() -> None:
+    """The name is substituted into API paths: `..` must never reach a template."""
+    gh = FakeGh()
+    assert main(["../../orgs/acme", "--apply"], client=gh) == 2
+    assert gh.calls == [], "an invalid name must be rejected before any gh call"
+
+
+def test_main_rejects_a_name_without_a_slash() -> None:
+    assert main(["notarepo"], client=FakeGh()) == 2
+
+
+def test_main_rejects_an_empty_repo_name() -> None:
+    assert main([""], client=FakeGh()) == 2

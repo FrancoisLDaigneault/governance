@@ -26,7 +26,7 @@ def _explicit_files() -> list[Path]:
         REPO / ".gitattributes",
         REPO / ".gitignore",
         REPO / "README.md",
-        REPO / "baseline.json",
+        REPO / "src" / "governance_tools" / "baseline.json",
         REPO / "pyproject.toml",
     ]
 

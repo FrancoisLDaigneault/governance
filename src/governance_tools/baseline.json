@@ -8,7 +8,7 @@
     "desired is the expected projection output; comparison is done on canonical JSON (sorted keys, compact separators)",
     "apply_payload is sent with --input - as the request body; controls without a payload send an empty body",
     "apply_preserve is a jq filter read from the live read endpoint and merged into apply_payload before the corrective call: it carries forward fields the API requires in the body but the baseline deliberately does not govern",
-    "desired-state, not a minimum floor: a live setting stricter than the baseline is reported as drift, and for rulesets it is protected by the stricter-than-baseline guard (see bootstrap.sh --force-normalize)",
+    "desired-state, not a minimum floor: a live setting stricter than the baseline is reported as drift, and for rulesets it is protected by the stricter-than-baseline guard (override with scripts/bootstrap.py --force-normalize)",
     "applicability public: free-plan personal accounts only get this control on public repos (rulesets need GitHub Pro on private repos; code scanning, secret scanning and private vulnerability reporting are public-only without paid add-ons)",
     "machine-local git signing config (docs/repo-settings.md, commit signing section) is out of scope: it is not a repository platform setting reachable through the API"
   ],

@@ -28,6 +28,19 @@ def endpoint_for(template: str, repo: str) -> str:
     return template.replace("{repo}", repo)
 
 
+def _canonical(raw: str) -> tuple[str, str]:
+    """(canonical, error): an unparseable success response is an error, never drift.
+
+    `gh` can exit 0 and still print something that is not JSON (a stray notice,
+    or a jq filter emitting several values). Letting that raise here would abort
+    the whole run, losing repositories a fleet audit had already checked.
+    """
+    try:
+        return canon_text(raw), ""
+    except ValueError:
+        return "", f"unparseable response: {raw.strip()[:80]}"
+
+
 def _read_ruleset(client: GhClient, control: Control, repo: str) -> LiveState:
     # includes_parents=false: after an org migration a parent ruleset could
     # otherwise match by name and the repo-level follow-up call would 404.
@@ -44,7 +57,8 @@ def _read_ruleset(client: GhClient, control: Control, repo: str) -> LiveState:
     projected = api_get(client, f"repos/{repo}/rulesets/{ruleset_id}", control.projection)
     if not projected.ok:
         return LiveState(ruleset_id=ruleset_id, error=projected.first_error_line())
-    return LiveState(canonical=canon_text(projected.stdout), ruleset_id=ruleset_id)
+    canonical, error = _canonical(projected.stdout)
+    return LiveState(canonical=canonical, ruleset_id=ruleset_id, error=error)
 
 
 def _read_status204(client: GhClient, control: Control, repo: str) -> LiveState:
@@ -62,7 +76,8 @@ def _read_json(client: GhClient, control: Control, repo: str) -> LiveState:
     result = api_get(client, endpoint_for(control.read_endpoint or "", repo), control.projection)
     if not result.ok:
         return LiveState(error=result.first_error_line())
-    return LiveState(canonical=canon_text(result.stdout))
+    canonical, error = _canonical(result.stdout)
+    return LiveState(canonical=canonical, error=error)
 
 
 def read_live(client: GhClient, control: Control, repo: str) -> LiveState:
@@ -91,28 +106,32 @@ def fetch_ruleset(client: GhClient, repo: str, ruleset_id: str) -> dict[str, obj
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _preserved_body(client: GhClient, control: Control, repo: str, payload: str) -> str | None:
+def _preserved_body(
+    client: GhClient, control: Control, repo: str, payload: dict[str, object]
+) -> str | None:
     """Merge ungoverned-but-required fields, read live, into the request body.
 
-    Returns None when the preserve read fails, is empty or is null: the write is
-    then refused rather than sending a partial body to a privileged endpoint.
+    Returns None when the preserve read fails, is empty, unparseable, or carries
+    a null value: the write is then refused rather than sending a partial body
+    to a privileged endpoint.
     """
     result = api_get(
         client, endpoint_for(control.read_endpoint or "", repo), control.apply_preserve
     )
     keep = result.stdout.strip()
-    if not result.ok or not keep or "null" in keep:
+    if not result.ok or not keep:
         return None
     try:
         parsed = json.loads(keep)
     except ValueError:
         return None
-    if not isinstance(parsed, dict):
+    # A null value means the API did not report the field: echoing it back would
+    # send a partial body. Checked on the parsed value, not on the raw text, so a
+    # legitimate string containing "null" does not refuse the write.
+    if not isinstance(parsed, dict) or any(value is None for value in parsed.values()):
         return None
     merged: dict[str, object] = dict(parsed)
-    body = json.loads(payload)
-    if isinstance(body, dict):
-        merged.update(body)
+    merged.update(payload)
     return canon(merged)
 
 
@@ -124,8 +143,8 @@ def apply_control(client: GhClient, control: Control, repo: str, ruleset_id: str
         method = "PUT"
         endpoint = f"repos/{repo}/rulesets/{ruleset_id}"
     body = canon(control.apply_payload) if control.apply_payload is not None else None
-    if control.apply_preserve and body is not None:
-        body = _preserved_body(client, control, repo, body)
+    if control.apply_preserve and control.apply_payload is not None:
+        body = _preserved_body(client, control, repo, control.apply_payload)
         if body is None:
             return GhResult(
                 1,

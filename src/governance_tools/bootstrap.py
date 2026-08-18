@@ -9,7 +9,7 @@ import sys
 from governance_tools.baseline import Control, load_controls
 from governance_tools.compare import canon, stricter_extras
 from governance_tools.controls import apply_control, fetch_ruleset, read_live
-from governance_tools.gh import Gh, GhClient, repo_field
+from governance_tools.gh import Gh, GhClient, is_valid_repo, repo_field
 from governance_tools.report import (
     APPLIED,
     DRIFT,
@@ -129,6 +129,11 @@ def check_repo(
 
 def _parse_args(args: list[str]) -> tuple[str, bool, bool] | None:
     if not args or args[0].startswith("--"):
+        return None
+    # Shape-checked before it reaches an API path template: `../../orgs/acme`
+    # would otherwise resolve to an org endpoint once `..` segments normalize.
+    if not is_valid_repo(args[0]):
+        print(f"not a repository name (expected OWNER/REPO): {args[0]!r}", file=sys.stderr)
         return None
     apply = force = False
     for arg in args[1:]:

@@ -117,3 +117,30 @@ def test_main_on_unreachable_repo_exits_1() -> None:
     """The regression that mattered: a repo that cannot be audited must fail the run."""
     gh = FakeGh(rules=[("--json visibility", fail("HTTP 404"))])
     assert main(["o/r"], client=gh) == 1
+
+
+def test_resolve_repos_rejects_a_path_traversal_name() -> None:
+    assert resolve_repos(FakeGh(), ["../../orgs/acme"]) is None
+
+
+def test_resolve_repos_rejects_unknown_flags_instead_of_auditing_them() -> None:
+    """`--help` and friends are usage errors, not repository names."""
+    assert resolve_repos(FakeGh(), ["--help"]) is None
+    assert resolve_repos(FakeGh(), ["-v"]) is None
+
+
+def test_resolve_repos_rejects_all_combined_with_repo_names() -> None:
+    assert resolve_repos(FakeGh(), ["--all", "o/r"]) is None
+
+
+def test_main_on_an_unknown_flag_is_a_usage_error() -> None:
+    gh = FakeGh()
+    assert main(["--help"], client=gh) == 2
+    assert gh.calls == []
+
+
+def test_render_matrix_renders_a_missing_status_as_err(controls: list[Control]) -> None:
+    """A row that never recorded a control must not raise while rendering."""
+    rows = {"o/r": {controls[0].id: OK}}
+    lines = render_matrix(rows, controls)
+    assert lines[-1].count(ERR) == len(controls) - 1

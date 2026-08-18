@@ -108,3 +108,30 @@ def test_audit_all_enumerates_the_fleet(
     gh.rules += compliant_rules(controls)
     assert audit_cli.main(["--all"], client=gh) == 0
     assert "me/one" in capsys.readouterr().out
+
+
+def test_audit_survives_a_repo_returning_garbage(
+    controls: list[Control], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One unparseable response must cost one cell, not the whole fleet run.
+
+    The in-process rewrite gave up the shell's subprocess-per-repo isolation, so
+    an exception escaping here would lose every repository already audited.
+    """
+
+    class Garbled(FakeGh):
+        def run(self, args, stdin=None):  # type: ignore[no-untyped-def]
+            joined = " ".join(args)
+            if "o/broken" in joined and "immutable-releases" in joined:
+                return ok("<!DOCTYPE html>")
+            return super().run(args, stdin)
+
+    gh = Garbled(rules=compliant_rules(controls))
+    code = audit_cli.main(["o/broken", "o/sane"], client=gh)
+    out = capsys.readouterr().out
+    rows = {line.split()[0]: line for line in out.splitlines() if line.startswith("o/")}
+    assert code == 1
+    assert set(rows) == {"o/broken", "o/sane"}, "both repositories must be reported"
+    assert rows["o/broken"].count("ERR") == 1, "exactly one cell is lost"
+    assert "ERR" not in rows["o/sane"], "the healthy repo is unaffected"
+    assert "total unchecked/skipped cells: 1" in out

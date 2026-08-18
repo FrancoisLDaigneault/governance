@@ -11,7 +11,7 @@ baseline for every repository owned by the account.
 
 | File | Role |
 | --- | --- |
-| `baseline.json` | Machine-readable desired state: 10 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value equals the verified live state of the reference repo (pi-config). |
+| `src/governance_tools/baseline.json` | Machine-readable desired state: 10 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value equals the verified live state of the reference repo (pi-config). It ships inside the package so an installed wheel can find it. |
 | `scripts/bootstrap.py` | Applies the baseline to one repository. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant repo changes nothing and exits 0. |
 | `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own). Exit 1 on any drift, error or skip. |
 | `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `bootstrap` and `audit` (orchestration), `report` (results and rendering). |
@@ -77,7 +77,7 @@ and applying the baseline would lower it. Three things bound that blast
 radius:
 
 - **Rulesets are guarded.** Before overwriting an existing ruleset,
-  `bootstrap.sh` compares it to the baseline; extra rule types, a higher
+  `bootstrap.py` compares it to the baseline; extra rule types, a higher
   `required_approving_review_count`, extra review requirements, or a wider
   ref scope (protecting refs the baseline does not, or excluding fewer)
   are reported as `STRICTER-THAN-BASELINE` and the control is **skipped**
@@ -136,8 +136,8 @@ organization, the same content becomes actual enforcement objects:
 organization rulesets targeting all repos (the two ruleset controls),
 a default/enforced security configuration (the security controls), and an
 organization Actions policy (the workflow-permissions control). At migration
-time, `audit.sh --all` is the acceptance test that the org objects reproduce
-this baseline.
+time, `uv run python scripts/audit.py --all` is the acceptance test that the
+org objects reproduce this baseline.
 
 ## Permanent test bed
 

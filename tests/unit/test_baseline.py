@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import governance_tools
 from governance_tools.baseline import BASELINE_PATH, BaselineError, Control, load_controls
 
 EXPECTED_CONTROLS = 10
@@ -130,3 +131,13 @@ def test_optional_fields_default_to_none(tmp_path: Path) -> None:
     assert control.read_endpoint is None
     assert control.apply_payload is None
     assert control.apply_preserve is None
+
+
+def test_baseline_ships_inside_the_installed_package() -> None:
+    """A path outside the package directory cannot be in the built wheel."""
+    package_dir = Path(governance_tools.__file__).resolve().parent
+    assert BASELINE_PATH.parent == package_dir, (
+        f"baseline.json must live in {package_dir} to ship in the wheel, "
+        f"found it in {BASELINE_PATH.parent}"
+    )
+    assert BASELINE_PATH.is_file()

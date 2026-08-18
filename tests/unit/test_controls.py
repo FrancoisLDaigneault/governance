@@ -218,3 +218,26 @@ def test_apply_preserve_refuses_on_non_object_read() -> None:
     gh = FakeGh(rules=[("can_approve", ok("[1]"))])
     assert not apply_control(gh, PRESERVING, "o/r", "").ok
     assert gh.mutations == []
+
+
+def test_unparseable_json_response_is_an_error_not_drift() -> None:
+    """gh can exit 0 and print something that is not JSON; that is a read error."""
+    gh = FakeGh(rules=[("repos/o/r", ok("not json"))])
+    state = read_live(gh, JSON_CTL, "o/r")
+    assert state.error.startswith("unparseable response:")
+    assert state.canonical == ""
+
+
+def test_unparseable_ruleset_response_is_an_error_not_drift() -> None:
+    gh = FakeGh(rules=[("includes_parents", ok("7")), ("rulesets/7", ok("<html>"))])
+    state = read_live(gh, RULESET, "o/r")
+    assert state.error.startswith("unparseable response:")
+    assert state.ruleset_id == "7", "the id stays available for the caller"
+
+
+def test_apply_preserve_accepts_a_value_containing_the_word_null() -> None:
+    """The null check reads the parsed value, not the raw text."""
+    gh = FakeGh(rules=[("can_approve", ok('{"policy":"nullable"}'))])
+    result = apply_control(gh, PRESERVING, "o/r", "")
+    assert result.ok
+    assert json.loads(gh.mutations[0].stdin or "")["policy"] == "nullable"

@@ -8,7 +8,7 @@ import sys
 
 from governance_tools.baseline import Control, load_controls
 from governance_tools.bootstrap import check_repo
-from governance_tools.gh import Gh, GhClient, current_login, list_repos
+from governance_tools.gh import Gh, GhClient, current_login, is_valid_repo, list_repos
 from governance_tools.report import (
     DRIFT,
     ERR,
@@ -30,17 +30,42 @@ def statuses_for(report: RepoReport, controls: list[Control]) -> dict[str, str]:
     return {control.id: seen.get(control.id, ERR) for control in controls}
 
 
+def _fleet(client: GhClient) -> list[str] | None:
+    """Every non-archived repository of the authenticated user."""
+    login = current_login(client)
+    if not login.ok:
+        return None
+    listing = list_repos(client, login.stdout.strip())
+    if not listing.ok:
+        return None
+    return sorted(line.strip() for line in listing.stdout.splitlines() if line.strip())
+
+
 def resolve_repos(client: GhClient, args: list[str]) -> list[str] | None:
-    """Explicit repositories, or every non-archived repo of the current user."""
+    """Explicit repositories, or every non-archived repo of the current user.
+
+    None means a usage error; the caller prints the usage line and exits 2.
+    Names are shape-checked here because they are substituted into API paths.
+    """
     if args and args[0] == "--all":
-        login = current_login(client)
-        if not login.ok:
+        if len(args) > 1:
+            print("--all takes no other argument", file=sys.stderr)
             return None
-        listing = list_repos(client, login.stdout.strip())
-        if not listing.ok:
-            return None
-        return sorted(line.strip() for line in listing.stdout.splitlines() if line.strip())
-    return list(args) if args else None
+        return _fleet(client)
+    if not args:
+        return None
+    invalid = [arg for arg in args if not is_valid_repo(arg)]
+    if invalid:
+        joined = ", ".join(repr(arg) for arg in invalid)
+        print(f"not a repository name (expected OWNER/REPO): {joined}", file=sys.stderr)
+        return None
+    return list(args)
+
+
+def _cell(statuses: dict[str, str], control_id: str, width: int) -> str:
+    """One matrix cell; a status the row never recorded renders as ERR."""
+    status = statuses.get(control_id, ERR)
+    return MARKS.get(status, status).ljust(width)
 
 
 def render_matrix(rows: dict[str, dict[str, str]], controls: list[Control]) -> list[str]:
@@ -60,7 +85,7 @@ def render_matrix(rows: dict[str, dict[str, str]], controls: list[Control]) -> l
         "-" * len(header),
     ]
     for repo in sorted(rows):
-        cells = [MARKS.get(rows[repo][c.id], rows[repo][c.id]).ljust(col_width) for c in controls]
+        cells = [_cell(rows[repo], control.id, col_width) for control in controls]
         lines.append(repo.ljust(repo_width) + "  " + "  ".join(cells))
     return lines
 
@@ -100,11 +125,13 @@ def main(argv: list[str] | None = None, client: GhClient | None = None) -> int:
     if not repos:
         print(USAGE, file=sys.stderr)
         return 2
-    rows, errors = audit(gh_client, load_controls(), repos)
+    # Loaded once and passed on: two independent reads could disagree and raise
+    # a KeyError while rendering, after the whole fleet had already been audited.
+    controls = load_controls()
+    rows, errors = audit(gh_client, controls, repos)
     if not rows:
         print("no results collected")
         return 2
-    controls = load_controls()
     print("\n".join(render_matrix(rows, controls)))
     drift, bad = count_cells(rows)
     print(f"\ntotal drift cells: {drift}")

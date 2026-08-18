@@ -7,6 +7,7 @@ module works on a validated Control.
 
 import json
 from dataclasses import dataclass
+from importlib.resources import files
 from pathlib import Path
 
 JsonDict = dict[str, object]
@@ -14,8 +15,9 @@ JsonDict = dict[str, object]
 KINDS = ("ruleset", "json", "status204")
 APPLICABILITIES = ("public", "all")
 
-# baseline.json sits at the repository root, next to this installed package.
-BASELINE_PATH = Path(__file__).resolve().parents[2] / "baseline.json"
+# baseline.json ships inside the package, so an installed wheel can find it;
+# a repo-root path would only resolve for an editable install.
+BASELINE_PATH = Path(str(files("governance_tools") / "baseline.json"))
 
 
 class BaselineError(ValueError):
