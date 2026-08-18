@@ -19,7 +19,7 @@ desired-state baseline for every repository owned by the account.
 
 | File | Role |
 | --- | --- |
-| `src/governance_tools/baseline.json` | Machine-readable desired state: 10 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
+| `src/governance_tools/baseline.json` | Machine-readable desired state: 14 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
 | `scripts/bootstrap.py` | Applies the baseline to one repository. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant repo changes nothing and exits 0. |
 | `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own). Exit 1 on any drift, error or skip. |
 | `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `bootstrap` and `audit` (orchestration), `report` (results and rendering). |

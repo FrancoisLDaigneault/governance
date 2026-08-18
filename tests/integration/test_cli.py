@@ -7,16 +7,14 @@ from governance_tools import audit as audit_cli
 from governance_tools import bootstrap as bootstrap_cli
 from governance_tools.baseline import Control
 
-EXPECTED_CONTROLS = 10
-
 
 def test_bootstrap_dry_run_on_compliant_repo(
-    compliant: FakeGh, capsys: pytest.CaptureFixture[str]
+    controls: list[Control], compliant: FakeGh, capsys: pytest.CaptureFixture[str]
 ) -> None:
     code = bootstrap_cli.main(["o/r"], client=compliant)
     out = capsys.readouterr().out
     assert code == 0
-    assert out.count(" OK") == EXPECTED_CONTROLS
+    assert out.count(" OK") == len(controls)
     assert "== done: 0 drift(s) ==" in out
     assert compliant.mutations == []
 
@@ -96,7 +94,7 @@ def test_audit_never_exits_0_with_an_unaudited_repo(
     code = audit_cli.main(["o/r", "o/missing"], client=gh)
     out = capsys.readouterr().out
     assert code == 1
-    assert "total unchecked/skipped cells: 10" in out
+    assert f"total unchecked/skipped cells: {len(controls)}" in out
     assert "repositories that could not be fully audited" in out
     assert "o/missing" in out
 
