@@ -4,6 +4,7 @@ The invariant under test: a repository that cannot be fully checked must never
 let the audit exit 0.
 """
 
+import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
 from governance_tools.audit import (
@@ -144,3 +145,51 @@ def test_render_matrix_renders_a_missing_status_as_err(controls: list[Control]) 
     rows = {"o/r": {controls[0].id: OK}}
     lines = render_matrix(rows, controls)
     assert lines[-1].count(ERR) == len(controls) - 1
+
+
+def _fleet_gh() -> FakeGh:
+    """A user in two orgs; acme repeats one of the user's own repositories."""
+    return FakeGh(
+        rules=[
+            ("api user/orgs", ok("acme\nfld-forge\n")),
+            ("api user", ok("me")),
+            ("repo list me", ok("me/one\nme/two\n")),
+            ("repo list acme", ok("acme/x\nme/two\n")),
+            ("repo list fld-forge", ok("fld-forge/.github\n")),
+        ]
+    )
+
+
+def test_fleet_unions_the_user_and_every_org_deduplicated() -> None:
+    """Once the fleet lives under an org, --all must still enumerate it."""
+    assert resolve_repos(_fleet_gh(), ["--all"]) == [
+        "acme/x",
+        "fld-forge/.github",
+        "me/one",
+        "me/two",
+    ]
+
+
+def test_fleet_filters_archived_repositories_for_every_owner() -> None:
+    gh = _fleet_gh()
+    resolve_repos(gh, ["--all"])
+    listings = [call for call in gh.calls if "repo list" in call.joined]
+    assert len(listings) == 3, "the user and both orgs must each be enumerated"
+    for call in listings:
+        assert "select(.isArchived | not)" in call.joined
+
+
+def test_fleet_org_listing_failure_is_visible_and_never_shrinks(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A silently shorter fleet would report the missing repositories as clean."""
+    gh = _fleet_gh()
+    gh.override("repo list fld-forge", fail("HTTP 403"))
+    assert resolve_repos(gh, ["--all"]) is None
+    assert "cannot list repositories for fld-forge" in capsys.readouterr().err
+
+
+def test_fleet_org_enumeration_failure_is_visible(capsys: pytest.CaptureFixture[str]) -> None:
+    gh = FakeGh(rules=[("api user/orgs", fail("HTTP 500")), ("api user", ok("me"))])
+    assert resolve_repos(gh, ["--all"]) is None
+    assert "cannot list organizations" in capsys.readouterr().err
