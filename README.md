@@ -1,28 +1,25 @@
 # Governance baseline as code
 
-[![CI](https://github.com/FrancoisLDaigneault/governance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FrancoisLDaigneault/governance/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/FrancoisLDaigneault/governance/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/FrancoisLDaigneault/governance/security/code-scanning)
-[![Release](https://img.shields.io/github/v/release/FrancoisLDaigneault/governance)](https://github.com/FrancoisLDaigneault/governance/releases)
-[![License](https://img.shields.io/github/license/FrancoisLDaigneault/governance)](LICENSE)
+[![CI](https://github.com/fld-forge/governance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fld-forge/governance/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/fld-forge/governance/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fld-forge/governance/security/code-scanning)
+[![Release](https://img.shields.io/github/v/release/fld-forge/governance)](https://github.com/fld-forge/governance/releases)
+[![License](https://img.shields.io/github/license/fld-forge/governance)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![mypy](https://img.shields.io/badge/mypy-strict-blue)](pyproject.toml)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/FrancoisLDaigneault/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/FrancoisLDaigneault/governance)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/fld-forge/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/fld-forge/governance)
 
-This repository governs GitHub **repository settings** across the fleet. It
-is not the Pi configuration tool (that is
-[pi-config](https://github.com/FrancoisLDaigneault/pi-config), from which
-this tooling was extracted at `10be797`).
+This repository governs GitHub **repository settings** across the fleet: it
+applies and audits them from a single machine-readable baseline.
 
-It turns the hand-maintained platform-settings inventory
-(pi-config's `docs/repo-settings.md`) into an executable desired-state
-baseline for every repository owned by the account.
+It turns a hand-maintained platform-settings inventory into an executable
+desired-state baseline for every repository owned by the account.
 
 | File | Role |
 | --- | --- |
-| `src/governance_tools/baseline.json` | Machine-readable desired state: 10 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value equals the verified live state of the reference repo (pi-config). It ships inside the package so an installed wheel can find it. |
+| `src/governance_tools/baseline.json` | Machine-readable desired state: 10 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
 | `scripts/bootstrap.py` | Applies the baseline to one repository. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant repo changes nothing and exits 0. |
 | `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own). Exit 1 on any drift, error or skip. |
 | `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `bootstrap` and `audit` (orchestration), `report` (results and rendering). |
@@ -90,8 +87,8 @@ OpenSSF Scorecard analyse the repository on their own cadence.
 Public-only controls (rulesets, CodeQL, secret scanning, push protection,
 private vulnerability reporting) are skipped with `NA` on private repos:
 a free personal plan only gets them on public repositories. Machine-local
-commit-signing configuration is out of scope (not a platform setting; see
-the commit-signing section of pi-config's `docs/repo-settings.md`).
+commit-signing configuration is out of scope: it lives in a clone's
+`.git/config`, not in the platform API this baseline governs.
 
 Comparison is projection-based: only the fields the baseline governs are
 compared (canonical JSON), so server-added defaults never produce false
@@ -132,12 +129,11 @@ Read failures are never silently treated as drift or as "disabled": a
 failed read renders `ERR`, counts toward a non-zero exit, and never
 triggers a corrective write.
 
-## Drift detection for pi-config itself
+## Drift detection for a single repository
 
-Running `uv run python scripts/audit.py FrancoisLDaigneault/pi-config` verifies
-that the live platform settings still match pi-config's `docs/repo-settings.md`
-(the baseline was extracted from it). Run it after any settings change, or on a
-schedule.
+Running `uv run python scripts/audit.py OWNER/REPO` verifies that one
+repository's live platform settings still match the baseline. Run it after any
+settings change, or on a schedule.
 
 A repository whose check aborts (bad name, auth failure, transient API
 error) is rendered as a row of `ERR` cells with its output printed under the

@@ -1,9 +1,8 @@
 # AGENTS.md - operating manual for coding agents
 
 This repository is the governance baseline as code: it applies and audits
-GitHub **repository settings** across a fleet. It is not the Pi configuration
-tool (that is [pi-config](https://github.com/FrancoisLDaigneault/pi-config),
-from which this tooling was extracted).
+GitHub **repository settings** across a fleet. It governs no other product,
+and no other product governs it.
 
 Layout: `src/governance_tools/` (`baseline` loads and validates
 `baseline.json`, `gh` is the only IO, `compare` is pure comparison plus the
@@ -64,7 +63,7 @@ McCabe <= 8, <= 30 statements and <= 5 arguments per function, lines <= 100
 A documentation drift gate (`tests/unit/test_docs.py`) fails the suite when
 doc claims (test counts, gate commands, caps, floors) diverge from reality.
 
-## Release semantics (empirically verified in pi-config)
+## Release semantics (empirically verified)
 
 Conventional Commits drive release-please (config under
 `.github/release-please/`): `feat:` bumps the minor version, `fix:` and

@@ -7,7 +7,7 @@ themselves.
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| [0001](0001-extracted-from-pi-config.md) | Extracted from pi-config into its own repository | accepted |
+| [0001](0001-governance-tooling-in-its-own-repository.md) | Governance tooling lives in its own repository | accepted |
 | [0002](0002-python-rewrite-over-shell.md) | Python rewrite of the shell reference implementation | accepted |
 | [0003](0003-pure-logic-separated-from-io.md) | Pure logic separated from IO as a security property | accepted |
 | [0004](0004-desired-state-with-a-stricter-guard.md) | Desired state, not a minimum floor, with a stricter-than-baseline guard | accepted |
