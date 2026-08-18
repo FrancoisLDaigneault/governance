@@ -1,0 +1,42 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Build and distribution artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+test-results.xml
+
+# Security: never commit credentials
+auth.json
+*.sqlite3*
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*~
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo

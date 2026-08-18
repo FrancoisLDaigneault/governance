@@ -5,11 +5,6 @@ is not the Pi configuration tool (that is
 [pi-config](https://github.com/FrancoisLDaigneault/pi-config), from which
 this tooling was extracted at `10be797`).
 
-> **Status: reference implementation.** These shell scripts are being
-> rewritten in Python 3.12 + uv with the full pi-config-grade apparatus
-> (tests, typing, gates, CI). Until then they remain the working tool and
-> the specification the port is written from.
-
 It turns the hand-maintained platform-settings inventory
 (pi-config's `docs/repo-settings.md`) into an executable desired-state
 baseline for every repository owned by the account.
@@ -17,30 +12,45 @@ baseline for every repository owned by the account.
 | File | Role |
 | --- | --- |
 | `baseline.json` | Machine-readable desired state: 10 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value equals the verified live state of the reference repo (pi-config). |
-| `bootstrap.sh` | Applies the baseline to one repository. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant repo changes nothing and exits 0. |
-| `audit.sh` | Compliance matrix across repositories (`--all` = every non-archived repo you own). Exit 1 on any drift, error or skip. |
+| `scripts/bootstrap.py` | Applies the baseline to one repository. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant repo changes nothing and exits 0. |
+| `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own). Exit 1 on any drift, error or skip. |
+| `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `bootstrap` and `audit` (orchestration), `report` (results and rendering). |
+
+## Setup
+
+```bash
+uv sync
+git config core.hooksPath hooks   # enable the versioned pre-commit gate
+```
+
+Or `just setup`. Requirements: `gh` authenticated with the `repo` scope, and
+[uv](https://docs.astral.sh/uv/). A fleet audit takes roughly 20-30 seconds
+per repo (a dozen API calls each).
 
 ## Usage
 
 ```bash
 # See what a repo would need (no changes made):
-governance/bootstrap.sh OWNER/REPO
+uv run python scripts/bootstrap.py OWNER/REPO
 
 # Apply the baseline to a repo:
-governance/bootstrap.sh OWNER/REPO --apply
+uv run python scripts/bootstrap.py OWNER/REPO --apply
 
 # Overwrite a ruleset the guard flagged as stricter than the baseline:
-governance/bootstrap.sh OWNER/REPO --apply --force-normalize
+uv run python scripts/bootstrap.py OWNER/REPO --apply --force-normalize
 
 # Audit the whole fleet (or specific repos):
-governance/audit.sh --all
-governance/audit.sh OWNER/REPO1 OWNER/REPO2
+uv run python scripts/audit.py --all
+uv run python scripts/audit.py OWNER/REPO1 OWNER/REPO2
 ```
 
-Requirements: `gh` authenticated with the `repo` scope, and Python 3
-reachable as the command `python` specifically (not only `python3`) - Git
-Bash on Windows is the supported environment. A fleet audit takes roughly
-20-30 seconds per repo (a dozen API calls each).
+## Quality gates
+
+`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` and
+`uv run pytest -q` (90% branch-coverage floor). All four run in the
+versioned pre-commit hook and via `just check`. The suite never touches the
+network: every test drives the real code through a fake `gh` layer, so
+mutations are recorded and "no write without `--apply`" is provable.
 
 ## Controls
 
@@ -76,6 +86,8 @@ radius:
   `ERR` and is never normalized. The guard covers rulesets only: the other
   controls are boolean or enum enable flags whose baseline value is already
   the strict one.
+- **Nothing is written without `--apply`.** Dry-run issues GET requests
+  only; this is enforced by tests that assert no mutating call was made.
 - **Ungoverned fields are preserved, never forced.** Where the API demands
   a field in the request body that the baseline deliberately does not
   govern, `apply_preserve` reads the live value and echoes it back
@@ -94,7 +106,7 @@ triggers a corrective write.
 
 ## Drift detection for pi-config itself
 
-Running `governance/audit.sh FrancoisLDaigneault/pi-config` verifies that
+Running `uv run python scripts/audit.py FrancoisLDaigneault/pi-config` verifies that
 the live platform settings still match `docs/repo-settings.md` (the baseline
 was extracted from it). Run it after any settings change, or on a schedule.
 
@@ -105,7 +117,7 @@ matrix - never dropped from the report. A fleet audit therefore cannot exit
 
 ## Scheduled audit (documented, not enabled)
 
-A weekly GitHub Actions job could run `audit.sh --all` and fail on drift.
+A weekly GitHub Actions job could run the audit across the fleet and fail on drift.
 It is NOT enabled because the workflow `GITHUB_TOKEN` is scoped to its own
 repository and cannot read sibling repos. Enabling it requires an owner
 action: create a fine-grained PAT (read-only: Administration, Code scanning,
