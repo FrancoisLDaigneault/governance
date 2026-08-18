@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/fld-forge/governance/compare/v0.3.2...v0.4.0) (2026-08-18)
+
+
+### Features
+
+* govern merge methods, branch cleanup, unused surfaces and web sign-off ([#10](https://github.com/fld-forge/governance/issues/10)) ([12ac017](https://github.com/fld-forge/governance/commit/12ac01739e27381856d171c8e7c31b041fe576b9))
+
 ## [0.3.2](https://github.com/fld-forge/governance/compare/v0.3.1...v0.3.2) (2026-08-18)
 
 
