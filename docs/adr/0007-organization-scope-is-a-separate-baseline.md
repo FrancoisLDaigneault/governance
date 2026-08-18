@@ -72,11 +72,30 @@ API accepts the `PATCH` and silently keeps the old value. Those must be audited
 as read-only observations that report drift and never claim to correct it,
 otherwise the tool would report a successful apply that changed nothing.
 
+## Update, 2026-08-18: the follow-up landed
+
+Option (b) is implemented and the gap below is closed. Every row of the table
+above is now a control in `baseline.json` with `"scope": "org"`. Two details
+turned out to matter more than expected once written:
+
+- Loading validates that a control's endpoints carry the placeholder its scope
+  requires (`{repo}` or `{org}`, never both). Substituting a target into a
+  template is the one place a scope confusion would aim a corrective write at
+  the wrong endpoint, so it is checked when the baseline is read, not later.
+- The unwritable settings became `manual_reason` controls rather than being
+  left out. They audit like any other control and render `MANUAL` under
+  `--apply`, which turns three lines of a hand-kept checklist into an audited
+  item that keeps reporting until someone actually clears it.
+
+The matrix question that justified deferring is answered: organization controls
+render as their own section under the repository matrix, through the same
+renderer with a different label, so no cell ever means two different things.
+
 ## Consequences
 
-- Organization state stays unaudited until the follow-up lands. This is a known,
-  written gap rather than an assumption that someone will remember; the table
-  above is the checklist that follow-up has to cover.
+- Organization state stayed unaudited until the follow-up landed. This was a
+  known, written gap rather than an assumption that someone would remember; the
+  table above was the checklist that follow-up had to cover.
 - The repository baseline keeps a single meaning: every control is a repository
   setting, and every `{repo}` template resolves. No control needs a conditional
   endpoint shape.

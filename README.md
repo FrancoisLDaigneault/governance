@@ -11,18 +11,19 @@
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/fld-forge/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/fld-forge/governance)
 
-This repository governs GitHub **repository settings** across the fleet: it
-applies and audits them from a single machine-readable baseline.
+This repository governs GitHub **repository and organization settings** across
+the fleet: it applies and audits them from a single machine-readable baseline.
 
 It turns a hand-maintained platform-settings inventory into an executable
-desired-state baseline for every repository owned by the account.
+desired-state baseline for every repository and organization owned by the
+account.
 
 | File | Role |
 | --- | --- |
-| `src/governance_tools/baseline.json` | Machine-readable desired state: 14 controls, each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
-| `scripts/bootstrap.py` | Applies the baseline to one repository. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant repo changes nothing and exits 0. |
-| `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own). Exit 1 on any drift, error or skip. |
-| `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `bootstrap` and `audit` (orchestration), `report` (results and rendering). |
+| `src/governance_tools/baseline.json` | Machine-readable desired state: 25 controls (14 repository-scope, 11 organization-scope), each with its read endpoint, a jq projection, the desired value and the corrective API call. Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
+| `scripts/bootstrap.py` | Applies the baseline to one repository, or to one organization with `--org`. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant target changes nothing and exits 0. |
+| `scripts/audit.py` | Compliance matrix across repositories (`--all` = every non-archived repo you own, plus an organization section for every org you belong to). Exit 1 on any drift, error or skip. |
+| `src/governance_tools/` | The package: `baseline` (load and validate), `gh` (the only IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `check` (per-control classification), `bootstrap`, `org` and `audit` (orchestration), `matrix` and `report` (rendering). |
 
 ## Setup
 
@@ -51,7 +52,27 @@ uv run python scripts/bootstrap.py OWNER/REPO --apply --force-normalize
 # Audit the whole fleet (or specific repos):
 uv run python scripts/audit.py --all
 uv run python scripts/audit.py OWNER/REPO1 OWNER/REPO2
+
+# See what an organization would need, and apply it:
+uv run python scripts/bootstrap.py --org ORG
+uv run python scripts/bootstrap.py --org ORG --apply
 ```
+
+## Scopes
+
+A control is keyed by a repository (the default) or by an organization. The two
+groups never mix: loading validates that a control's endpoints carry the
+placeholder its scope requires, so an organization control cannot aim at a
+repository endpoint. `--all` renders the repository matrix first, then an
+organization section for every organization the authenticated user belongs to;
+explicit `OWNER/REPO` arguments audit exactly what was asked for.
+
+Three organization controls are **manual**: the security configuration, the
+member privileges GitHub exposes read-only, and the two-factor requirement. The
+REST API either accepts a write and silently keeps the old value, or needs a
+multi-step operation this baseline deliberately does not automate. They are
+audited like any other control and report `MANUAL` under `--apply`, with the
+reason and the web-UI path, instead of claiming a correction that never landed.
 
 ## Quality gates
 

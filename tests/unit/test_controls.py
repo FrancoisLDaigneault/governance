@@ -135,22 +135,22 @@ def test_fetch_ruleset_raises_when_the_read_fails() -> None:
     """A failed stricter-check must never read as 'not stricter'."""
     gh = FakeGh(rules=[("rulesets/9", fail("HTTP 502"))])
     with pytest.raises(RuntimeError, match="HTTP 502"):
-        fetch_ruleset(gh, "o/r", "9")
+        fetch_ruleset(gh, "repos/o/r/rulesets/9")
 
 
 def test_fetch_ruleset_tolerates_unparseable_success() -> None:
     gh = FakeGh(rules=[("rulesets/9", ok("not json"))])
-    assert fetch_ruleset(gh, "o/r", "9") == {}
+    assert fetch_ruleset(gh, "repos/o/r/rulesets/9") == {}
 
 
 def test_fetch_ruleset_ignores_non_object_json() -> None:
     gh = FakeGh(rules=[("rulesets/9", ok("[1,2]"))])
-    assert fetch_ruleset(gh, "o/r", "9") == {}
+    assert fetch_ruleset(gh, "repos/o/r/rulesets/9") == {}
 
 
 def test_fetch_ruleset_returns_the_object() -> None:
     gh = FakeGh(rules=[("rulesets/9", ok('{"rules":[]}'))])
-    assert fetch_ruleset(gh, "o/r", "9") == {"rules": []}
+    assert fetch_ruleset(gh, "repos/o/r/rulesets/9") == {"rules": []}
 
 
 def test_apply_creates_a_new_ruleset_with_post() -> None:

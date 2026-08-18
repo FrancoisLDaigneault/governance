@@ -1,14 +1,22 @@
 # AGENTS.md - operating manual for coding agents
 
 This repository is the governance baseline as code: it applies and audits
-GitHub **repository settings** across a fleet. It governs no other product,
-and no other product governs it.
+GitHub **repository and organization settings** across a fleet. It governs no
+other product, and no other product governs it.
 
 Layout: `src/governance_tools/` (`baseline` loads and validates
 `baseline.json`, `gh` is the only IO, `compare` is pure comparison plus the
-stricter-than-baseline guard, `controls` does per-control read/apply,
-`bootstrap` and `audit` orchestrate, `report` renders), `scripts/` (thin
-wrappers), `tests/` (unit / integration), `hooks/` (versioned pre-commit hook).
+stricter-than-baseline guard, `controls` does per-control read/apply, `check`
+classifies one control, `bootstrap`, `org` and `audit` orchestrate, `matrix`
+and `report` render), `scripts/` (thin wrappers), `tests/` (unit /
+integration), `hooks/` (versioned pre-commit hook).
+
+A control is keyed by a repository or, with `"scope": "org"`, by an
+organization. Loading validates that a control's endpoints carry the
+placeholder its scope requires, so the two can never aim at each other. A
+control carrying `manual_reason` has no corrective call: it audits, reports
+drift, and renders `MANUAL` under `--apply` rather than claiming a write the
+API would silently discard.
 
 ## Blast radius - read this first
 

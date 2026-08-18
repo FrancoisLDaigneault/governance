@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from governance_tools.baseline import Control, load_controls
+from governance_tools.baseline import Control, load_controls, split_by_scope
 from governance_tools.compare import canon
 from governance_tools.gh import GhResult
 
@@ -55,6 +55,12 @@ class FakeGh:
         self.rules.insert(0, (pattern, result))
 
 
+# Synthetic ruleset id prefix for organization controls. A numeric offset would
+# not be enough: rules match by substring, and "rulesets/1" is a substring of
+# "rulesets/100", so one scope would answer the other's detail call.
+ORG_IDS = "org"
+
+
 def ok(stdout: str = "") -> GhResult:
     return GhResult(0, stdout, "")
 
@@ -64,17 +70,22 @@ def fail(stderr: str, code: int = 1) -> GhResult:
 
 
 def compliant_rules(
-    controls: list[Control], visibility: str = "public"
+    controls: list[Control], visibility: str = "public", ruleset_prefix: str = ""
 ) -> list[tuple[str, GhResult]]:
-    """Rules that make every control read back exactly its desired state."""
+    """Rules that make every control read back exactly its desired state.
+
+    `ruleset_prefix` namespaces the synthetic ruleset ids so repository and
+    organization rules can share one fake without answering each other's calls.
+    """
     rules: list[tuple[str, GhResult]] = [
         ("--json visibility", ok(visibility)),
         ("--json isArchived", ok("false")),
     ]
     for index, control in enumerate(controls, start=1):
         if control.kind == "ruleset":
-            rules.append((f'select(.name=="{control.ruleset_name}")', ok(str(index))))
-            rules.append((f"rulesets/{index}", ok(canon(control.desired))))
+            ruleset_id = f"{ruleset_prefix}{index}"
+            rules.append((f'select(.name=="{control.ruleset_name}")', ok(ruleset_id)))
+            rules.append((f"rulesets/{ruleset_id}", ok(canon(control.desired))))
         elif control.kind == "status204":
             rules.append((control.read_endpoint or "", ok()))
         else:
@@ -84,10 +95,26 @@ def compliant_rules(
 
 @pytest.fixture
 def controls() -> list[Control]:
-    """The real baseline, so the tests exercise the shipped configuration."""
-    return load_controls()
+    """The real repository controls, so tests exercise the shipped configuration."""
+    return split_by_scope(load_controls())[0]
+
+
+@pytest.fixture
+def org_controls() -> list[Control]:
+    """The real organization controls."""
+    return split_by_scope(load_controls())[1]
 
 
 @pytest.fixture
 def compliant(controls: list[Control]) -> FakeGh:
     return FakeGh(rules=compliant_rules(controls))
+
+
+@pytest.fixture
+def compliant_org(org_controls: list[Control]) -> FakeGh:
+    """Every organization control reads back exactly its desired state."""
+    # The org_facts probe is matched on its jq filter, not on the endpoint: the
+    # endpoint `orgs/o` is a prefix of several control reads and would shadow them.
+    return FakeGh(
+        rules=[("--jq .login", ok("o")), *compliant_rules(org_controls, ruleset_prefix=ORG_IDS)]
+    )

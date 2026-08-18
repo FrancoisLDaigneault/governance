@@ -2,11 +2,13 @@
 
 from collections.abc import Sequence
 
+import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
 from governance_tools.baseline import Control, load_controls
-from governance_tools.bootstrap import check_control, check_repo, main, repo_facts
-from governance_tools.gh import GhResult
+from governance_tools.bootstrap import check_repo, main, repo_facts
+from governance_tools.check import check_control
+from governance_tools.gh import GhResult, is_valid_org, is_valid_repo
 from governance_tools.report import (
     APPLIED,
     DRIFT,
@@ -310,3 +312,53 @@ def test_main_rejects_a_name_without_a_slash() -> None:
 
 def test_main_rejects_an_empty_repo_name() -> None:
     assert main([""], client=FakeGh()) == 2
+
+
+def test_bare_org_name_is_not_a_valid_repo() -> None:
+    """The two target shapes must never be confusable: an org carries no slash."""
+    assert is_valid_repo("fld-forge") is False
+    assert is_valid_org("fld-forge") is True
+
+
+def test_owner_repo_is_not_a_valid_org() -> None:
+    assert is_valid_org("owner/repo") is False
+    assert is_valid_repo("owner/repo") is True
+
+
+def test_org_name_rejects_path_traversal() -> None:
+    for name in ("../../orgs/acme", "a/b", "", "-lead", "trail-"):
+        assert is_valid_org(name) is False, name
+
+
+def test_org_flag_runs_the_organization_controls(compliant_org: FakeGh) -> None:
+    assert main(["--org", "o"], client=compliant_org) == 0
+    assert compliant_org.mutations == []
+    assert any("orgs/o" in call.joined for call in compliant_org.calls)
+
+
+def test_org_flag_never_reads_a_repository_endpoint(compliant_org: FakeGh) -> None:
+    """Scope separation, end to end: no `repos/` call may escape an --org run."""
+    main(["--org", "o"], client=compliant_org)
+    assert not [c for c in compliant_org.calls if "repos/" in c.joined]
+
+
+def test_org_flag_rejects_a_path_traversal_name() -> None:
+    gh = FakeGh()
+    assert main(["--org", "../../repos/o/r", "--apply"], client=gh) == 2
+    assert gh.calls == [], "an invalid name must be rejected before any gh call"
+
+
+def test_org_flag_without_a_name_is_a_usage_error() -> None:
+    gh = FakeGh()
+    assert main(["--org"], client=gh) == 2
+    assert gh.calls == []
+
+
+def test_org_flag_rejects_an_unknown_trailing_argument(compliant_org: FakeGh) -> None:
+    assert main(["--org", "o", "--nope"], client=compliant_org) == 2
+
+
+def test_unreadable_org_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
+    gh = FakeGh(rules=[("--jq .login", fail("HTTP 404: Not Found"))])
+    assert main(["--org", "nope"], client=gh) == 1
+    assert "ERROR: nope" in capsys.readouterr().err

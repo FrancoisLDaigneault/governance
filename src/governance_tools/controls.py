@@ -24,8 +24,22 @@ class LiveState:
     error: str = ""
 
 
-def endpoint_for(template: str, repo: str) -> str:
-    return template.replace("{repo}", repo)
+def endpoint_for(template: str, target: str) -> str:
+    """Substitute the scope placeholder with the target.
+
+    Both placeholders are replaced because loading validates that a template
+    carries exactly the one its scope requires, so only one can ever match.
+    """
+    return template.replace("{repo}", target).replace("{org}", target)
+
+
+def ruleset_endpoint(control: Control, target: str, ruleset_id: str) -> str:
+    """Detail endpoint of one ruleset, derived from the control's own listing.
+
+    Derived rather than hardcoded so the same code serves `repos/{repo}/rulesets`
+    and `orgs/{org}/rulesets`.
+    """
+    return f"{endpoint_for(control.read_endpoint or '', target)}/{ruleset_id}"
 
 
 def _canonical(raw: str) -> tuple[str, str]:
@@ -41,12 +55,13 @@ def _canonical(raw: str) -> tuple[str, str]:
         return "", f"unparseable response: {raw.strip()[:80]}"
 
 
-def _read_ruleset(client: GhClient, control: Control, repo: str) -> LiveState:
+def _read_ruleset(client: GhClient, control: Control, target: str) -> LiveState:
     # includes_parents=false: after an org migration a parent ruleset could
-    # otherwise match by name and the repo-level follow-up call would 404.
+    # otherwise match by name and the repo-level follow-up call would 404. The
+    # organization listing ignores the parameter, which is why it is safe here.
     listing = api_get(
         client,
-        f"{endpoint_for(control.read_endpoint or '', repo)}?includes_parents=false",
+        f"{endpoint_for(control.read_endpoint or '', target)}?includes_parents=false",
         f'[.[] | select(.name=="{control.ruleset_name}")][0].id // empty',
     )
     if not listing.ok:
@@ -54,17 +69,17 @@ def _read_ruleset(client: GhClient, control: Control, repo: str) -> LiveState:
     ruleset_id = listing.stdout.strip()
     if not ruleset_id:
         return LiveState(canonical=ABSENT)
-    projected = api_get(client, f"repos/{repo}/rulesets/{ruleset_id}", control.projection)
+    projected = api_get(client, ruleset_endpoint(control, target, ruleset_id), control.projection)
     if not projected.ok:
         return LiveState(ruleset_id=ruleset_id, error=projected.first_error_line())
     canonical, error = _canonical(projected.stdout)
     return LiveState(canonical=canonical, ruleset_id=ruleset_id, error=error)
 
 
-def _read_status204(client: GhClient, control: Control, repo: str) -> LiveState:
+def _read_status204(client: GhClient, control: Control, target: str) -> LiveState:
     # 204 = enabled, 404 = disabled; anything else (401/403/5xx) is a read
     # error and must not be mistaken for "disabled".
-    result = api_get(client, endpoint_for(control.read_endpoint or "", repo))
+    result = api_get(client, endpoint_for(control.read_endpoint or "", target))
     if result.ok:
         return LiveState(canonical=canon({"enabled": True}))
     if "HTTP 404" in result.combined:
@@ -72,31 +87,31 @@ def _read_status204(client: GhClient, control: Control, repo: str) -> LiveState:
     return LiveState(error=result.first_error_line())
 
 
-def _read_json(client: GhClient, control: Control, repo: str) -> LiveState:
-    result = api_get(client, endpoint_for(control.read_endpoint or "", repo), control.projection)
+def _read_json(client: GhClient, control: Control, target: str) -> LiveState:
+    result = api_get(client, endpoint_for(control.read_endpoint or "", target), control.projection)
     if not result.ok:
         return LiveState(error=result.first_error_line())
     canonical, error = _canonical(result.stdout)
     return LiveState(canonical=canonical, error=error)
 
 
-def read_live(client: GhClient, control: Control, repo: str) -> LiveState:
-    """Read one control's live projected state."""
+def read_live(client: GhClient, control: Control, target: str) -> LiveState:
+    """Read one control's live projected state, for a repository or an org."""
     if control.kind == "ruleset":
-        return _read_ruleset(client, control, repo)
+        return _read_ruleset(client, control, target)
     if control.kind == "status204":
-        return _read_status204(client, control, repo)
-    return _read_json(client, control, repo)
+        return _read_status204(client, control, target)
+    return _read_json(client, control, target)
 
 
-def fetch_ruleset(client: GhClient, repo: str, ruleset_id: str) -> dict[str, object]:
+def fetch_ruleset(client: GhClient, endpoint: str) -> dict[str, object]:
     """Full live ruleset object, for the stricter-than-baseline guard.
 
     Raises RuntimeError when the read itself fails: a failed check must never
     read as "not stricter". Unparseable but successful output yields {}, which
     the guard treats as no extras, matching the reference implementation.
     """
-    result = api_get(client, f"repos/{repo}/rulesets/{ruleset_id}")
+    result = api_get(client, endpoint)
     if not result.ok:
         raise RuntimeError(result.first_error_line())
     try:
@@ -107,7 +122,7 @@ def fetch_ruleset(client: GhClient, repo: str, ruleset_id: str) -> dict[str, obj
 
 
 def _preserved_body(
-    client: GhClient, control: Control, repo: str, payload: dict[str, object]
+    client: GhClient, control: Control, target: str, payload: dict[str, object]
 ) -> str | None:
     """Merge ungoverned-but-required fields, read live, into the request body.
 
@@ -116,7 +131,7 @@ def _preserved_body(
     to a privileged endpoint.
     """
     result = api_get(
-        client, endpoint_for(control.read_endpoint or "", repo), control.apply_preserve
+        client, endpoint_for(control.read_endpoint or "", target), control.apply_preserve
     )
     keep = result.stdout.strip()
     if not result.ok or not keep:
@@ -135,16 +150,16 @@ def _preserved_body(
     return canon(merged)
 
 
-def apply_control(client: GhClient, control: Control, repo: str, ruleset_id: str) -> GhResult:
+def apply_control(client: GhClient, control: Control, target: str, ruleset_id: str) -> GhResult:
     """Run the corrective call. Assumes read_live ran first."""
     method = control.apply_method
-    endpoint = endpoint_for(control.apply_endpoint, repo)
+    endpoint = endpoint_for(control.apply_endpoint, target)
     if control.kind == "ruleset" and ruleset_id:
         method = "PUT"
-        endpoint = f"repos/{repo}/rulesets/{ruleset_id}"
+        endpoint = ruleset_endpoint(control, target, ruleset_id)
     body = canon(control.apply_payload) if control.apply_payload is not None else None
     if control.apply_preserve and control.apply_payload is not None:
-        body = _preserved_body(client, control, repo, control.apply_payload)
+        body = _preserved_body(client, control, target, control.apply_payload)
         if body is None:
             return GhResult(
                 1,
