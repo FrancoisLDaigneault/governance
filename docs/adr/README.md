@@ -11,6 +11,8 @@ themselves.
 | [0002](0002-python-rewrite-over-shell.md) | Python rewrite of the shell reference implementation | accepted |
 | [0003](0003-pure-logic-separated-from-io.md) | Pure logic separated from IO as a security property | accepted |
 | [0004](0004-desired-state-with-a-stricter-guard.md) | Desired state, not a minimum floor, with a stricter-than-baseline guard | accepted |
+| [0005](0005-branch-protection-without-required-checks.md) | Branch protection without required status checks | accepted |
+| [0006](0006-signed-commits-and-the-enablement-order.md) | Signed commits, and the order in which the rule is enabled | accepted |
 
 Conventions: MADR-lite, numbered, immutable once accepted (supersede with a
 new ADR instead of editing history). New significant decisions get the next
