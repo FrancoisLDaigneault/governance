@@ -1,6 +1,6 @@
 # ADR-0005: Branch protection without required status checks
 
-- Status: accepted
+- Status: superseded by [ADR-0009](0009-required-status-checks-per-repository.md)
 - Date: 2026-08-17
 
 ## Context

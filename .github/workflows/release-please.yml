@@ -32,6 +32,14 @@ jobs:
         with:
           config-file: .github/release-please/release-please-config.json
           manifest-file: .github/release-please/.release-please-manifest.json
+          # RELEASE_PLEASE_TOKEN is a fine-grained PAT (Contents + Pull
+          # requests, read/write). With it, release PRs are pushed as the
+          # user and trigger CI like any other branch, so they can satisfy
+          # the required status checks of ADR-0009. Until the secret exists
+          # this falls back to github.token, which keeps today's behaviour:
+          # release PRs carry no CI runs, and the checks rule must NOT be
+          # applied live (ADR-0009, phase 2).
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
 
   release-assets:
     # when a draft release was just created: build wheel+sdist, export the

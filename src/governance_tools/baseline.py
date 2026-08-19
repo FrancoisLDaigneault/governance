@@ -6,16 +6,19 @@ module works on a validated Control.
 """
 
 import json
-from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
 
-JsonDict = dict[str, object]
-
-KINDS = ("ruleset", "json", "status204")
-APPLICABILITIES = ("public", "all")
-SCOPES = ("repo", "org")
-PLACEHOLDERS = {"repo": "{repo}", "org": "{org}"}
+from governance_tools.control import (
+    APPLICABILITIES,
+    KINDS,
+    PLACEHOLDERS,
+    SCOPES,
+    Control,
+    JsonDict,
+    Override,
+)
+from governance_tools.gh import is_valid_repo
 
 # baseline.json ships inside the package, so an installed wheel can find it;
 # a repo-root path would only resolve for an editable install.
@@ -24,41 +27,6 @@ BASELINE_PATH = Path(str(files("governance_tools") / "baseline.json"))
 
 class BaselineError(ValueError):
     """The baseline file is missing a field or carries an unusable value."""
-
-
-@dataclass(frozen=True)
-class Control:
-    """One governed setting, of a repository (default) or of an organization."""
-
-    id: str
-    kind: str
-    applicability: str
-    desired: JsonDict
-    apply_method: str
-    apply_endpoint: str
-    scope: str = "repo"
-    read_endpoint: str | None = None
-    projection: str | None = None
-    ruleset_name: str | None = None
-    apply_payload: JsonDict | None = None
-    apply_preserve: str | None = None
-    manual_reason: str | None = None
-    na_when: str | None = None
-    na_reason: str | None = None
-
-    def applies_to(self, visibility: str) -> bool:
-        """Public-only controls need a public repo (private ones need a paid plan)."""
-        return self.applicability != "public" or visibility == "public"
-
-    @property
-    def is_manual(self) -> bool:
-        """True when no API call can correct this control; it audits only."""
-        return self.manual_reason is not None
-
-    @property
-    def placeholder(self) -> str:
-        """The template placeholder this control's endpoints must carry."""
-        return PLACEHOLDERS[self.scope]
 
 
 def _get_str(raw: JsonDict, key: str, cid: str) -> str:
@@ -103,6 +71,37 @@ def _parse_scope(raw: JsonDict, cid: str) -> str:
     return str(scope)
 
 
+def _parse_override(value: object, cid: str, target: str, has_payload: bool) -> Override:
+    if not isinstance(value, dict) or not value:
+        raise BaselineError(f"control {cid}: override {target} must be a non-empty object")
+    unknown = sorted(set(value) - {"desired", "apply_payload"})
+    if unknown:
+        raise BaselineError(f"control {cid}: override {target} carries unknown keys {unknown}")
+    if "apply_payload" in value and not has_payload:
+        raise BaselineError(
+            f"control {cid}: override {target} carries apply_payload, but the control has none"
+        )
+    desired = _get_dict(value, "desired", cid) if "desired" in value else None
+    payload = _get_dict(value, "apply_payload", cid) if "apply_payload" in value else None
+    return Override(desired=desired, apply_payload=payload)
+
+
+def _parse_overrides(raw: JsonDict, cid: str, scope: str) -> dict[str, Override]:
+    """Per-target replacements, repo scope only, keyed by a validated OWNER/REPO."""
+    if "overrides" not in raw:
+        return {}
+    if scope != "repo":
+        raise BaselineError(f"control {cid}: overrides need scope 'repo', got {scope!r}")
+    section = _get_dict(raw, "overrides", cid)
+    has_payload = "apply_payload" in raw
+    parsed: dict[str, Override] = {}
+    for target, value in section.items():
+        if not is_valid_repo(target):
+            raise BaselineError(f"control {cid}: override key {target!r} is not OWNER/REPO")
+        parsed[target] = _parse_override(value, cid, target, has_payload)
+    return parsed
+
+
 def _parse_apply(raw: JsonDict, cid: str, manual_reason: str | None) -> tuple[str, str]:
     """A manual control carries no corrective call; every other one must."""
     if manual_reason is None:
@@ -142,6 +141,7 @@ def _parse_control(raw: JsonDict) -> Control:
     manual_reason = _get_opt_str(raw, "manual_reason", cid)
     apply_method, apply_endpoint = _parse_apply(raw, cid, manual_reason)
     na_when, na_reason = _parse_na(raw, cid, kind)
+    scope = _parse_scope(raw, cid)
     control = Control(
         id=cid,
         kind=kind,
@@ -149,7 +149,7 @@ def _parse_control(raw: JsonDict) -> Control:
         desired=_get_dict(raw, "desired", cid),
         apply_method=apply_method,
         apply_endpoint=apply_endpoint,
-        scope=_parse_scope(raw, cid),
+        scope=scope,
         read_endpoint=_get_opt_str(raw, "read_endpoint", cid),
         projection=_get_opt_str(raw, "projection", cid),
         ruleset_name=_get_opt_str(raw, "ruleset_name", cid),
@@ -158,6 +158,7 @@ def _parse_control(raw: JsonDict) -> Control:
         manual_reason=manual_reason,
         na_when=na_when,
         na_reason=na_reason,
+        overrides=_parse_overrides(raw, cid, scope),
     )
     if control.kind == "ruleset" and not control.ruleset_name:
         raise BaselineError(f"control {cid}: ruleset controls need a ruleset_name")

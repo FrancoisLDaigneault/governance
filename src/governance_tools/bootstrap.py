@@ -6,8 +6,9 @@ Dry-run by default: `--apply` is required for any mutation, and
 
 import sys
 
-from governance_tools.baseline import Control, load_controls, split_by_scope
+from governance_tools.baseline import load_controls, split_by_scope
 from governance_tools.check import check_control
+from governance_tools.control import Control
 from governance_tools.gh import Gh, GhClient, is_valid_org, is_valid_repo, repo_field
 from governance_tools.org import check_org
 from governance_tools.report import (
@@ -44,7 +45,7 @@ def check_repo(
         return RepoReport(repo, error=error)
     if archived:
         return RepoReport(repo, visibility=visibility, archived=True)
-    results = [check_control(client, c, repo, visibility, run) for c in controls]
+    results = [check_control(client, c.for_target(repo), repo, visibility, run) for c in controls]
     return RepoReport(repo, visibility=visibility, results=results)
 
 

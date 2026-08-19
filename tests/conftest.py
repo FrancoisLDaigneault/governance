@@ -9,8 +9,9 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from governance_tools.baseline import Control, load_controls, split_by_scope
+from governance_tools.baseline import load_controls, split_by_scope
 from governance_tools.compare import canon
+from governance_tools.control import Control
 from governance_tools.gh import GhResult
 
 

@@ -8,8 +8,8 @@ through to a corrective write.
 import json
 from dataclasses import dataclass
 
-from governance_tools.baseline import Control
 from governance_tools.compare import canon, canon_text
+from governance_tools.control import Control
 from governance_tools.gh import GhClient, GhResult, api_get, api_write
 
 ABSENT = '"absent"'

@@ -9,9 +9,10 @@ control that widened its payload would silently reset a sibling's setting.
 import pytest
 from conftest import FakeGh, ok
 
-from governance_tools.baseline import Control, load_controls
+from governance_tools.baseline import load_controls
 from governance_tools.check import check_control
 from governance_tools.compare import canon
+from governance_tools.control import Control
 from governance_tools.report import DRIFT, OK, Mode
 
 REPO_OBJECT_CONTROLS = (

@@ -8,8 +8,8 @@ not audited here is a one-time setting that rots unnoticed.
 
 import sys
 
-from governance_tools.baseline import Control
 from governance_tools.check import check_control
+from governance_tools.control import Control
 from governance_tools.gh import GhClient, api_get
 from governance_tools.report import Mode, OrgReport, statuses_for
 

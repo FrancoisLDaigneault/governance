@@ -5,8 +5,8 @@ it by an organization login. Nothing here knows which, because a control already
 carries its own endpoints and the target is substituted into them.
 """
 
-from governance_tools.baseline import Control
 from governance_tools.compare import canon, stricter_extras
+from governance_tools.control import Control
 from governance_tools.controls import (
     LiveState,
     apply_control,
