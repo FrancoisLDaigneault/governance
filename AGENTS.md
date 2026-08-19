@@ -5,12 +5,13 @@ GitHub **repository and organization settings** for the `fld-forge` organization
 Repositories outside that organization are not part of its fleet.
 
 Layout: `src/governance_tools/` (`baseline` loads and validates
-`baseline.json`, `gh` is the only IO, `compare` is pure comparison plus the
-stricter-than-baseline guard, `controls` does per-control read/apply, `check`
-classifies one control, `bootstrap`, `org` and `audit` orchestrate, `matrix`
-and `report` render), `scripts/` (thin wrappers), `tests/` (unit /
-integration); local gates run through the pre-commit framework
-(`.pre-commit-config.yaml`).
+`baseline.json`, `gh` is the only network IO, `compare` is pure comparison
+plus the stricter-than-baseline guard, `controls` does per-control
+read/apply, `check` classifies one control, `bootstrap`, `org` and `audit`
+orchestrate, `matrix` and `report` render, `scheduled_audit` wraps the audit
+for the scheduled task and writes only its own log files), `scripts/` (thin
+wrappers), `tests/` (unit / integration); local gates run through the
+pre-commit framework (`.pre-commit-config.yaml`).
 
 A control is keyed by a repository or, with `"scope": "org"`, by an
 organization. Loading validates that a control's endpoints carry the

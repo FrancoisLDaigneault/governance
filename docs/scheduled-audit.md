@@ -11,7 +11,7 @@ revisited without being re-derived.
 | --- | --- |
 | Task name | `governance-fleet-audit` |
 | Schedule | Weekly, Wednesday 09:00 local time |
-| Runs | `scripts/weekly-audit.ps1`, which calls `scripts/audit.py --all` |
+| Runs | `scripts/weekly_audit.py`, which runs the audit as `--all` in-process |
 | Log | `C:\Users\franc\governance-audit\<yyyy-MM-dd_HHmmss>.log` |
 | History | the newest 12 logs, about a quarter at a weekly cadence |
 
@@ -26,14 +26,16 @@ repository. After a machine rebuild, clone the repository and run:
 
 ```bat
 schtasks /Create /TN "governance-fleet-audit" ^
-  /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\franc\governance\scripts\weekly-audit.ps1" ^
+  /TR "C:\Users\franc\.local\bin\uv.exe run --directory C:\Users\franc\governance python scripts/weekly_audit.py" ^
   /SC WEEKLY /D WED /ST 09:00 /F
 ```
 
-The wrapper resolves `uv`, the repository and the log directory as absolute
-paths, because a scheduled task inherits neither the user's `PATH` nor a useful
-working directory. Those paths are this machine's layout; adjust them in
-`scripts/weekly-audit.ps1` if the repository or `uv` moves.
+The task command carries the absolute paths of `uv` and of the repository,
+because a scheduled task inherits neither the user's `PATH` nor a useful
+working directory. The wrapper itself hard-codes nothing: it derives the log
+directory (a repository sibling named `governance-audit`) from its own
+location, so only the `schtasks` command needs adjusting if `uv` or the
+repository moves.
 
 Prove it without waiting a week:
 
