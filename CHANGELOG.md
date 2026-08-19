@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/fld-forge/governance/compare/v0.6.2...v0.7.0) (2026-08-19)
+
+
+### Features
+
+* migrate local gates to the pre-commit framework ([#20](https://github.com/fld-forge/governance/issues/20)) ([2211baf](https://github.com/fld-forge/governance/commit/2211baf2d43bc7f78bcd7c44750e663b9194b512))
+
 ## [0.6.2](https://github.com/fld-forge/governance/compare/v0.6.1...v0.6.2) (2026-08-18)
 
 
