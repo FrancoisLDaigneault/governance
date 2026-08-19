@@ -1,7 +1,7 @@
 {
   "version": 1,
   "verified_at": "2026-08-18",
-  "source": "a hand-maintained platform-settings inventory, cross-checked control by control against live repository state via gh api GETs; every desired value below equals a state that was verified live rather than written from memory",
+  "source": "a hand-maintained platform-settings inventory, cross-checked control by control against live repository state via gh api GETs; every desired value below equals a state that was verified live rather than written from memory, except the values ADR-0009 marks as aspirational (the required_status_checks rule and allowed_merge_methods), which deliberately lead the live state until phase 2 applies them",
   "notes": [
     "projection is a jq filter applied to the read endpoint response; it extracts exactly the fields this baseline governs, so server-added defaults never cause false drift",
     "desired is the expected projection output; comparison is done on canonical JSON (sorted keys, compact separators)",

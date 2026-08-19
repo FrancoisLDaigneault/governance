@@ -56,13 +56,14 @@ change the test that describes it, in the same commit, and say so.
 Setup: `uv sync --locked` then `uv run pre-commit install --install-hooks`
 (or `just setup`, which also clears any legacy `core.hooksPath`). Python 3.12+.
 
-The four quality commands (also available as `just check`; the pre-commit
+The five quality commands (also available as `just check`; the pre-commit
 hooks and the CI quality job run exactly these):
 
 ```bash
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
+uv run deptry src
 uv run pytest -q
 ```
 

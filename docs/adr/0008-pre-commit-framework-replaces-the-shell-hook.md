@@ -1,6 +1,6 @@
 # ADR-0008: pre-commit framework replaces the versioned shell hook
 
-- Status: accepted
+- Status: accepted (hook set amended by ADR-0010: deptry joined the local hooks)
 - Date: 2026-08-19
 
 ## Context

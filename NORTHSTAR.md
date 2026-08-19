@@ -47,7 +47,7 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Branch coverage | 99.17% | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
+| Branch coverage | 99.22% | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
 
 Supporting indicators:
 
@@ -56,7 +56,7 @@ Supporting indicators:
 | Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit framework + CI) |
 | src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
 | Green tests | 213 (199 unit / 14 integration) | 100% green | `uv run pytest` (pre-commit framework + CI) |
-| Modules performing IO | 1 of 8 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` |
+| Modules performing IO | 1 of 11 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` |
 
 ## Scalability
 

@@ -16,6 +16,7 @@ themselves.
 | [0007](0007-organization-scope-is-a-separate-baseline.md) | Organization scope is a separate baseline, not a control kind | accepted |
 | [0008](0008-pre-commit-framework-replaces-the-shell-hook.md) | pre-commit framework replaces the versioned shell hook | accepted |
 | [0009](0009-required-status-checks-per-repository.md) | Required status checks, per repository, behind the release-please token | accepted |
+| [0010](0010-fleet-standard-alignment.md) | Alignment on the fleet repository standard | accepted |
 
 Conventions: MADR-lite, numbered, immutable once accepted (supersede with a
 new ADR instead of editing history). New significant decisions get the next

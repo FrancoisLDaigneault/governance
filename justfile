@@ -12,6 +12,7 @@ check:
     uv run ruff check .
     uv run ruff format --check .
     uv run mypy
+    uv run deptry src
     uv run pytest -q
 
 # Apply the baseline to one repository (dry-run by default; pass --apply)
