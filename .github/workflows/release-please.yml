@@ -17,7 +17,7 @@ jobs:
     # releases lock at publish time; "force-tag-creation": true makes
     # release-please create the tag immediately (GitHub's lazy tag creation
     # would otherwise defer it to publish and break later changelog lookups
-    # if a draft ever gets stuck). See fld-forge/pi-config ADR-0004, the
+    # if a draft ever gets stuck). See fld-forge/pi-config ADR-0009, the
     # reference for this release flow.
     runs-on: ubuntu-latest
     timeout-minutes: 10

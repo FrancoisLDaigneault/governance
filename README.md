@@ -166,7 +166,7 @@ matrix - never dropped from the report. A fleet audit therefore cannot exit
 ## Scheduled audit
 
 The audit runs weekly from a **local scheduled task** (`governance-fleet-audit`,
-Wednesdays at 09:00 local), which calls `scripts/weekly-audit.ps1`. It writes the
+Wednesdays at 09:00 local), which calls `scripts/weekly_audit.py`. It writes the
 whole matrix to a timestamped log under `governance-audit/` and keeps the newest
 twelve. Drift is a finding, not a failure: the wrapper succeeds whether the audit
 reports clean or drifting, and fails only when the audit itself could not run.
