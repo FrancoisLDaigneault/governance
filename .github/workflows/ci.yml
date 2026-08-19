@@ -79,19 +79,6 @@ jobs:
       - run: uv export --no-emit-project --no-hashes --format requirements-txt -o /tmp/requirements.txt
       - run: uvx pip-audit==2.10.1 --no-deps -r /tmp/requirements.txt
 
-  shellcheck:
-    # static analysis of the versioned git hook. Not in the local pre-commit
-    # hook: shellcheck is not reliably installed on developer machines (it
-    # ships with the ubuntu runner).
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - run: shellcheck --version
-      - run: shellcheck hooks/pre-commit
-
   zizmor:
     # static audit of the GitHub Actions workflows themselves; fails on any finding
     runs-on: ubuntu-latest

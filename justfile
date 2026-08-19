@@ -1,12 +1,13 @@
 # Optional convenience task runner (https://just.systems).
 # Every command below works standalone -- just is never required.
 
-# One-command onboarding: install deps and enable the versioned pre-commit hook
+# One-command onboarding: install deps and the pre-commit framework hooks
 setup:
-    uv sync
-    git config core.hooksPath hooks
+    uv sync --locked
+    git config --unset-all core.hooksPath || true
+    uv run pre-commit install --install-hooks
 
-# Run the quality gates (same quality commands as the pre-commit hook and the CI quality job)
+# Run the quality gates (same quality commands as the CI quality job)
 check:
     uv run ruff check .
     uv run ruff format --check .

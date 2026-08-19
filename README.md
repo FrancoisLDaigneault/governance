@@ -25,8 +25,8 @@ that organization are out of scope.
 ## Setup
 
 ```bash
-uv sync
-git config core.hooksPath hooks   # enable the versioned pre-commit gate
+uv sync --locked
+uv run pre-commit install --install-hooks   # installs the framework hooks (.pre-commit-config.yaml)
 ```
 
 Or `just setup`. Requirements: `gh` authenticated with the `repo` scope,
@@ -75,13 +75,15 @@ reason and the web-UI path, instead of claiming a correction that never landed.
 
 `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` and
 `uv run pytest -q` (90% branch-coverage floor). All four run in the
-versioned pre-commit hook, in the CI quality job and via `just check`. The
+CI quality job and via `just check`; the pre-commit framework
+(`.pre-commit-config.yaml`) runs them at each commit, plus hygiene checks
+and ruff autofix through its pinned mirror hooks. The
 suite never touches the network: every test drives the real code through a
 fake `gh` layer, so mutations are recorded and "no write without `--apply`"
 is provable.
 
 CI adds a locked install (`uv sync --locked`), gitleaks over the full git
-history, pip-audit, zizmor, shellcheck and a weekly scheduled run; CodeQL and
+history, pip-audit, zizmor and a weekly scheduled run; CodeQL and
 OpenSSF Scorecard analyse the repository on their own cadence.
 
 ## Project documents

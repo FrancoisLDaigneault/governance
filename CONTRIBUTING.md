@@ -3,12 +3,13 @@
 ## Setup
 
 ```bash
-uv sync                           # creates .venv/ and installs the package + dev tools
-git config core.hooksPath hooks   # enables the versioned pre-commit hook
+uv sync --locked                            # creates .venv/ and installs the package + dev tools
+uv run pre-commit install --install-hooks   # installs the framework hooks (.pre-commit-config.yaml)
 ```
 
 With [just](https://just.systems) installed, `just setup` runs both commands in
-one step (optional -- the commands above remain the baseline).
+one step and clears any legacy `core.hooksPath` setting (optional -- the
+commands above remain the baseline).
 
 Running the tool also needs [`gh`](https://cli.github.com/) authenticated. The
 test suite does not: it drives the real code through a fake `gh` layer and never
@@ -17,13 +18,13 @@ touches the network.
 ## Contribution flow
 
 `main` is protected: direct pushes are rejected and every change lands through
-a pull request. Work on a branch, let the pre-commit hook run the gates at each
-commit, push the branch, open a PR, and merge (squash) once the checks are
-green.
+a pull request. Work on a branch, let the pre-commit hooks run the gates at
+each commit (`uv run pre-commit run --all-files` replays them on demand),
+push the branch, open a PR, and merge (squash) once the checks are green.
 
 ## Quality gates
 
-Before any PR, these commands must pass without errors (the pre-commit hook
+Before any PR, these commands must pass without errors (the pre-commit hooks
 and the CI quality job run them too):
 
 ```bash

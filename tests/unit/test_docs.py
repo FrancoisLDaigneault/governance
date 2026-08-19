@@ -52,21 +52,39 @@ def test_northstar_test_counts() -> None:
     )
 
 
-def _hook_commands() -> list[str]:
-    lines = _text("hooks/pre-commit").splitlines()
-    return [line.strip() for line in lines if line.strip().startswith("uv run ")]
+def _gate_commands() -> list[str]:
+    """The quality commands of the justfile `check` recipe (source of truth)."""
+    lines = _text("justfile").splitlines()
+    start = lines.index("check:") + 1
+    block = []
+    for line in lines[start:]:
+        if not line.startswith(" "):
+            break
+        block.append(line.strip())
+    return [cmd for cmd in block if cmd.startswith("uv run ")]
 
 
 def test_gate_commands_documented() -> None:
-    commands = _hook_commands()
-    assert commands, "hooks/pre-commit: no 'uv run ...' command found"
+    commands = _gate_commands()
+    assert commands, "justfile check recipe: no 'uv run ...' command found"
     for doc in DOCS:
         text = _text(doc)
         missing = [cmd for cmd in commands if cmd not in text]
-        assert not missing, f"{doc}: hook commands not quoted verbatim: {missing}"
+        assert not missing, f"{doc}: gate commands not quoted verbatim: {missing}"
     ci = _text(".github/workflows/ci.yml")
     missing = [cmd for cmd in commands if f"- run: {cmd}" not in ci]
-    assert not missing, f"ci.yml quality job: hook commands missing: {missing}"
+    assert not missing, f"ci.yml quality job: gate commands missing: {missing}"
+
+
+def test_gate_commands_in_precommit_hooks() -> None:
+    """Ruff runs through its pinned mirror hooks; the venv-bound gate
+    commands must stay wired as local-hook entries, or a deleted hook
+    would silently drop a local gate."""
+    commands = [cmd for cmd in _gate_commands() if not cmd.startswith("uv run ruff")]
+    assert commands, "justfile check recipe: no venv-bound 'uv run ...' command found"
+    config = _text(".pre-commit-config.yaml")
+    missing = [cmd for cmd in commands if f"entry: {cmd}" not in config]
+    assert not missing, f".pre-commit-config.yaml: local-hook entries missing: {missing}"
 
 
 def test_size_caps_documented() -> None:

@@ -16,6 +16,7 @@ packages = ["src/governance_tools"]
 dev = [
     "hypothesis>=6.165.10",
     "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.3",
@@ -40,7 +41,7 @@ max-args = 5
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Coverage rides every pytest run (pre-commit hook, CI, just check).
+# Coverage rides every pytest run (pre-commit, CI, just check).
 addopts = "--cov=governance_tools --cov-fail-under=90"
 
 [tool.coverage.run]
