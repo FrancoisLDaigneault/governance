@@ -108,6 +108,17 @@ def test_main_runs_logs_rotates_and_maps(tmp_path: Path) -> None:
     assert "audit exit code: 1" in text
 
 
+def test_main_logs_a_crash_as_a_malfunction(tmp_path: Path) -> None:
+    def crashing(argv: list[str]) -> int:
+        raise RuntimeError("baseline exploded")
+
+    assert main(run=crashing, log_dir=tmp_path, now=lambda: STARTED) == 2
+    text = (tmp_path / "2026-08-19_090000.log").read_text(encoding="utf-8")
+    assert "Traceback (most recent call last):" in text
+    assert "RuntimeError: baseline exploded" in text
+    assert "audit exit code: 2" in text
+
+
 def test_main_surfaces_a_malfunction(tmp_path: Path) -> None:
     def broken(argv: list[str]) -> int:
         print("usage: audit.py [--all | OWNER/REPO ...]", file=sys.stderr)

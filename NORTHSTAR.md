@@ -18,7 +18,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.8 s (224 tests) | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 1.8 s (225 tests) | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -55,8 +55,8 @@ Supporting indicators:
 | --- | --- | --- | --- |
 | Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit framework + CI) |
 | src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 224 (210 unit / 14 integration) | 100% green | `uv run pytest` (pre-commit framework + CI) |
-| Modules performing IO | 1 of 12 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` |
+| Green tests | 225 (211 unit / 14 integration) | 100% green | `uv run pytest` (pre-commit framework + CI) |
+| Modules performing network IO | 1 of 12 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |
 
 ## Scalability
 

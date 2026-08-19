@@ -17,6 +17,7 @@ log; whether it RAN is the task's Last Result.
 
 import contextlib
 import io
+import traceback
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -33,16 +34,27 @@ def default_log_dir() -> Path:
     Derived from this file's location rather than hard-coded, so the wrapper
     keeps working if the repository moves; the scheduled task only needs the
     absolute path of `uv` and of the repository, both in its own command line.
+    Assumes the editable install `uv sync` performs; under a wheel install
+    this file would resolve into site-packages, not the repository.
     """
     repo = Path(__file__).resolve().parents[2]
     return repo.parent / f"{repo.name}-audit"
 
 
 def capture_audit(run: Callable[[list[str]], int]) -> tuple[int, str]:
-    """Run the fleet audit with stdout and stderr merged into one string."""
+    """Run the fleet audit with stdout and stderr merged into one string.
+
+    A crash is a malfunction: the traceback goes into the buffer so the log
+    is still written, and the exit code lands in the failing range instead
+    of the ambiguous success/drift range a raw interpreter exit would give.
+    """
     buffer = io.StringIO()
     with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
-        code = run(["--all"])
+        try:
+            code = run(["--all"])
+        except Exception:  # any crash must land in the log, not on a dead task
+            traceback.print_exc()
+            code = MALFUNCTION
     return code, buffer.getvalue()
 
 
