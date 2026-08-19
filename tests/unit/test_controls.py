@@ -5,8 +5,8 @@ import json
 import pytest
 from conftest import FakeGh, fail, ok
 
-from governance_tools.baseline import Control
 from governance_tools.compare import canon
+from governance_tools.control import Control
 from governance_tools.controls import (
     ABSENT,
     apply_control,

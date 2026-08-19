@@ -9,8 +9,8 @@ passed over.
 import pytest
 from conftest import ORG_IDS, FakeGh, fail, ok
 
-from governance_tools.baseline import Control
 from governance_tools.compare import canon
+from governance_tools.control import Control
 from governance_tools.org import audit_orgs, check_org, org_facts
 from governance_tools.report import DRIFT, ERR, MANUAL, OK, Mode
 

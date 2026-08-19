@@ -8,7 +8,7 @@ import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
 from governance_tools.audit import audit, main, resolve_orgs, resolve_repos, statuses_for
-from governance_tools.baseline import Control
+from governance_tools.control import Control
 from governance_tools.matrix import count_cells, render_matrix
 from governance_tools.report import DRIFT, ERR, NA, OK, ControlResult, RepoReport
 

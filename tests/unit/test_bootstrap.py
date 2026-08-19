@@ -5,9 +5,10 @@ from collections.abc import Sequence
 import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
-from governance_tools.baseline import Control, load_controls
+from governance_tools.baseline import load_controls
 from governance_tools.bootstrap import check_repo, main, repo_facts
 from governance_tools.check import check_control
+from governance_tools.control import Control, Override
 from governance_tools.gh import GhResult, is_valid_org, is_valid_repo
 from governance_tools.report import (
     APPLIED,
@@ -57,6 +58,32 @@ def test_public_only_control_is_na_on_private() -> None:
     result = check_control(FakeGh(), PUBLIC_ONLY, "o/r", "private", Mode())
     assert result.status == NA
     assert "public-only control on a private repo" in result.details[0]
+
+
+OVERRIDDEN = Control(
+    id="ov",
+    kind="json",
+    applicability="all",
+    desired={"enabled": True},
+    apply_method="PUT",
+    apply_endpoint="repos/{repo}/x",
+    read_endpoint="repos/{repo}/x",
+    projection="{enabled}",
+    overrides={"o/quiet": Override(desired={"enabled": False})},
+)
+
+
+def test_check_repo_resolves_per_target_overrides() -> None:
+    """One live state, two verdicts: drift for the fleet, OK for the overridden repo."""
+    rules = [
+        ("--json visibility", ok("public")),
+        ("--json isArchived", ok("false")),
+        ("{enabled}", ok('{"enabled":false}')),
+    ]
+    quiet = check_repo(FakeGh(rules=rules), [OVERRIDDEN], "o/quiet")
+    loud = check_repo(FakeGh(rules=rules), [OVERRIDDEN], "o/loud")
+    assert quiet.results[0].status == OK
+    assert loud.results[0].status == DRIFT
 
 
 PROBED = Control(

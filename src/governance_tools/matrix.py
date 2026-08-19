@@ -5,7 +5,7 @@ orchestration stays free of formatting and both sections (repositories and
 organizations) render through the same code.
 """
 
-from governance_tools.baseline import Control
+from governance_tools.control import Control
 from governance_tools.report import DRIFT, ERR, NA, OK, STRICT
 
 MARKS = {OK: "OK", DRIFT: "DRIFT", NA: "-", STRICT: "STRICT"}

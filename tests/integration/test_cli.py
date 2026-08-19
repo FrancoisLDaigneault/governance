@@ -5,7 +5,7 @@ from conftest import ORG_IDS, FakeGh, compliant_rules, fail, ok
 
 from governance_tools import audit as audit_cli
 from governance_tools import bootstrap as bootstrap_cli
-from governance_tools.baseline import Control
+from governance_tools.control import Control
 
 
 def test_bootstrap_dry_run_on_compliant_repo(

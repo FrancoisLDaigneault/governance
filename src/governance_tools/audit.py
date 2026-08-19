@@ -6,8 +6,9 @@ silently dropped, so the audit can never exit 0 with something unaudited.
 
 import sys
 
-from governance_tools.baseline import Control, load_controls, split_by_scope
+from governance_tools.baseline import load_controls, split_by_scope
 from governance_tools.bootstrap import check_repo
+from governance_tools.control import Control
 from governance_tools.gh import Gh, GhClient, is_valid_repo, list_repos
 from governance_tools.matrix import count_cells, print_totals, render_matrix
 from governance_tools.org import audit_orgs

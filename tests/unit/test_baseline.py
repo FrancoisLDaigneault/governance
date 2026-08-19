@@ -6,13 +6,8 @@ from pathlib import Path
 import pytest
 
 import governance_tools
-from governance_tools.baseline import (
-    BASELINE_PATH,
-    BaselineError,
-    Control,
-    load_controls,
-    split_by_scope,
-)
+from governance_tools.baseline import BASELINE_PATH, BaselineError, load_controls, split_by_scope
+from governance_tools.control import Control
 
 EXPECTED_CONTROLS = 25
 
@@ -259,6 +254,117 @@ def test_only_codeql_probes_applicability() -> None:
     """
     probing = [c.id for c in load_controls() if c.na_when]
     assert probing == ["codeql-default-setup"]
+
+
+def test_override_resolves_for_its_target(tmp_path: Path) -> None:
+    raw = valid_control(
+        apply_payload={"enabled": True},
+        overrides={
+            "o/special": {"desired": {"enabled": False}, "apply_payload": {"enabled": False}}
+        },
+    )
+    control = load_controls(write_baseline(tmp_path, [raw]))[0]
+    resolved = control.for_target("o/special")
+    assert resolved.desired == {"enabled": False}
+    assert resolved.apply_payload == {"enabled": False}
+    assert resolved.apply_endpoint == control.apply_endpoint
+    assert resolved.projection == control.projection
+
+
+def test_override_leaves_other_targets_alone(tmp_path: Path) -> None:
+    raw = valid_control(overrides={"o/special": {"desired": {"enabled": False}}})
+    control = load_controls(write_baseline(tmp_path, [raw]))[0]
+    assert control.for_target("o/other") is control
+
+
+def test_override_desired_only_keeps_base_payload(tmp_path: Path) -> None:
+    raw = valid_control(
+        apply_payload={"enabled": True},
+        overrides={"o/special": {"desired": {"enabled": False}}},
+    )
+    resolved = load_controls(write_baseline(tmp_path, [raw]))[0].for_target("o/special")
+    assert resolved.desired == {"enabled": False}
+    assert resolved.apply_payload == {"enabled": True}
+
+
+def test_override_on_org_control_is_rejected(tmp_path: Path) -> None:
+    """An organization control has exactly one target; an override is a contradiction."""
+    raw = valid_control(
+        scope="org",
+        apply_endpoint="orgs/{org}/thing",
+        overrides={"o/r": {"desired": {"enabled": False}}},
+    )
+    with pytest.raises(BaselineError, match="overrides need scope 'repo'"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_override_with_unknown_key_is_rejected(tmp_path: Path) -> None:
+    """Only desired and apply_payload may differ: endpoints and projection stay shared."""
+    raw = valid_control(overrides={"o/r": {"desired": {"enabled": False}, "projection": "{x}"}})
+    with pytest.raises(BaselineError, match="unknown keys"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_override_key_must_be_owner_repo(tmp_path: Path) -> None:
+    raw = valid_control(overrides={"../../orgs/acme": {"desired": {"enabled": False}}})
+    with pytest.raises(BaselineError, match="is not OWNER/REPO"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_override_payload_without_base_payload_is_rejected(tmp_path: Path) -> None:
+    raw = valid_control(overrides={"o/r": {"apply_payload": {"enabled": False}}})
+    with pytest.raises(BaselineError, match="the control has none"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_empty_override_is_rejected(tmp_path: Path) -> None:
+    raw = valid_control(overrides={"o/r": {}})
+    with pytest.raises(BaselineError, match="non-empty object"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_non_object_override_is_rejected(tmp_path: Path) -> None:
+    raw = valid_control(overrides={"o/r": "nope"})
+    with pytest.raises(BaselineError, match="non-empty object"):
+        load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_shipped_main_protection_requires_the_quality_gates() -> None:
+    """The five CI contexts, the strict policy, and the checks rule type (ADR-0009)."""
+    control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
+    assert control.desired["checks"] == {
+        "contexts": ["CodeQL", "pip-audit", "quality", "secrets-scan", "zizmor"],
+        "strict": True,
+    }
+    rule_types = control.desired["rule_types"]
+    assert isinstance(rule_types, list)
+    assert "required_status_checks" in rule_types
+
+
+def test_shipped_dot_github_override_carries_no_checks() -> None:
+    """.github has no CI: required checks there would block every merge forever."""
+    control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
+    resolved = control.for_target("fld-forge/.github")
+    assert resolved is not control
+    assert resolved.desired["checks"] is None
+    rule_types = resolved.desired["rule_types"]
+    assert isinstance(rule_types, list)
+    assert "required_status_checks" not in rule_types
+    assert resolved.apply_payload is not None
+    rules = resolved.apply_payload["rules"]
+    assert isinstance(rules, list)
+    types = [rule["type"] for rule in rules if isinstance(rule, dict)]
+    assert "required_status_checks" not in types
+
+
+def test_shipped_mature_discipline_pins_squash_only() -> None:
+    """Rebase merges rewrite commits unsigned; the org ruleset pins squash."""
+    control = next(c for c in load_controls() if c.id == "org-ruleset-mature-discipline")
+    pr = control.desired["pr"]
+    assert isinstance(pr, dict)
+    assert pr["allowed_merge_methods"] == ["squash"]
+    assert control.projection is not None
+    assert "allowed_merge_methods" in control.projection
 
 
 def test_shipped_manual_controls_are_the_documented_three() -> None:
