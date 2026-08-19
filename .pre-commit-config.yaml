@@ -1,0 +1,46 @@
+# Pre-commit framework configuration (https://pre-commit.com).
+# Enable with: uv run pre-commit install --install-hooks (done by `just setup`).
+# Mirror hooks are pinned to tags matching the versions locked in uv.lock;
+# mypy and pytest run as local system hooks so they use the project venv
+# (the isolated mypy mirror cannot see our dependencies and drifts from CI
+# - see ADR-0008).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # rev matches the ruff version in uv.lock
+    rev: v0.16.3
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # rev matches the uv version in use; keep in sync when bumping uv
+    rev: 0.11.19
+    hooks:
+      - id: uv-lock
+
+  - repo: local
+    hooks:
+      # always_run: without it pre-commit skips these whole-project gates
+      # on commits whose staged files match no filter (e.g. pure deletions).
+      - id: mypy
+        name: mypy (project venv)
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: pytest (full suite, coverage floor)
+        entry: uv run pytest -q
+        language: system
+        pass_filenames: false
+        always_run: true

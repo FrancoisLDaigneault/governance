@@ -1,4 +1,3 @@
 # Normalize all text files to LF in the repository and the working tree.
-# Ends the recurring CRLF conversion noise on Windows checkouts; the shell
-# hook (hooks/pre-commit) requires LF to run.
+# Ends the recurring CRLF conversion noise on Windows checkouts.
 * text=auto eol=lf

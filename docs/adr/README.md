@@ -14,6 +14,7 @@ themselves.
 | [0005](0005-branch-protection-without-required-checks.md) | Branch protection without required status checks | accepted |
 | [0006](0006-signed-commits-and-the-enablement-order.md) | Signed commits, and the order in which the rule is enabled | accepted |
 | [0007](0007-organization-scope-is-a-separate-baseline.md) | Organization scope is a separate baseline, not a control kind | accepted |
+| [0008](0008-pre-commit-framework-replaces-the-shell-hook.md) | pre-commit framework replaces the versioned shell hook | accepted |
 
 Conventions: MADR-lite, numbered, immutable once accepted (supersede with a
 new ADR instead of editing history). New significant decisions get the next

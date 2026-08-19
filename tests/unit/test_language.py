@@ -22,7 +22,7 @@ ACCENTED = {chr(c) for lo, hi in _RANGES for c in range(lo, hi + 1)}
 
 def _explicit_files() -> list[Path]:
     return [
-        REPO / "hooks" / "pre-commit",
+        REPO / ".pre-commit-config.yaml",
         REPO / "justfile",
         REPO / ".editorconfig",
         REPO / ".gitattributes",

@@ -18,7 +18,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 2.8 s (199 tests) | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 2.8 s (200 tests) | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -47,15 +47,15 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Branch coverage | 99.17% | >= 90% (enforced floor) | every full `uv run pytest` run (hook + CI + `just check`) |
+| Branch coverage | 99.17% | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit hook + CI) |
+| Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit framework + CI) |
 | src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 199 (185 unit / 14 integration) | 100% green | `uv run pytest` (hook + CI) |
+| Green tests | 200 (186 unit / 14 integration) | 100% green | `uv run pytest` (pre-commit framework + CI) |
 | Modules performing IO | 1 of 8 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` |
 
 ## Scalability

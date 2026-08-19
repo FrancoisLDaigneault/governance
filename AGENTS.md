@@ -9,7 +9,8 @@ Layout: `src/governance_tools/` (`baseline` loads and validates
 stricter-than-baseline guard, `controls` does per-control read/apply, `check`
 classifies one control, `bootstrap`, `org` and `audit` orchestrate, `matrix`
 and `report` render), `scripts/` (thin wrappers), `tests/` (unit /
-integration), `hooks/` (versioned pre-commit hook).
+integration); local gates run through the pre-commit framework
+(`.pre-commit-config.yaml`).
 
 A control is keyed by a repository or, with `"scope": "org"`, by an
 organization. Loading validates that a control's endpoints carry the
@@ -52,10 +53,11 @@ change the test that describes it, in the same commit, and say so.
 
 ## Gates and commands
 
-Setup: `uv sync` then `git config core.hooksPath hooks`. Python 3.12+.
+Setup: `uv sync --locked` then `uv run pre-commit install --install-hooks`
+(or `just setup`, which also clears any legacy `core.hooksPath`). Python 3.12+.
 
-The four quality commands (also available as `just check`; the pre-commit hook
-and the CI quality job run exactly these):
+The four quality commands (also available as `just check`; the pre-commit
+hooks and the CI quality job run exactly these):
 
 ```bash
 uv run ruff check .
