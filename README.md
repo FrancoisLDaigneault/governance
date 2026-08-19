@@ -1,15 +1,16 @@
 # Governance baseline as code
 
-[![CI](https://github.com/fld-forge/governance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fld-forge/governance/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/fld-forge/governance/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI)](https://github.com/fld-forge/governance/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/fld-forge/governance/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fld-forge/governance/security/code-scanning)
-[![Release](https://img.shields.io/github/v/release/fld-forge/governance)](https://github.com/fld-forge/governance/releases)
-[![License](https://img.shields.io/github/license/fld-forge/governance)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![mypy](https://img.shields.io/badge/mypy-strict-blue)](pyproject.toml)
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/fld-forge/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/fld-forge/governance)
+[![Release](https://img.shields.io/github/v/release/fld-forge/governance?logo=github)](https://github.com/fld-forge/governance/releases)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white)](pyproject.toml)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![mypy](https://img.shields.io/badge/mypy-strict-blue?logo=python&logoColor=white)](pyproject.toml)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](.pre-commit-config.yaml)
+[![License](https://img.shields.io/github/license/fld-forge/governance)](LICENSE)
 
 This repository governs GitHub **repository and organization settings** for the
 `fld-forge` fleet from a single machine-readable baseline. Repositories outside
@@ -73,8 +74,9 @@ reason and the web-UI path, instead of claiming a correction that never landed.
 
 ## Quality gates
 
-`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` and
-`uv run pytest -q` (90% branch-coverage floor). All four run in the
+`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`,
+`uv run deptry src` (the package must stay stdlib-only) and
+`uv run pytest -q` (90% branch-coverage floor). All five run in the
 CI quality job and via `just check`; the pre-commit framework
 (`.pre-commit-config.yaml`) runs them at each commit, plus hygiene checks
 and ruff autofix through its pinned mirror hooks. The

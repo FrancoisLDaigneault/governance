@@ -17,7 +17,8 @@ jobs:
     # releases lock at publish time; "force-tag-creation": true makes
     # release-please create the tag immediately (GitHub's lazy tag creation
     # would otherwise defer it to publish and break later changelog lookups
-    # if a draft ever gets stuck). See ADR-0004.
+    # if a draft ever gets stuck). See fld-forge/pi-config ADR-0004, the
+    # reference for this release flow.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -43,7 +44,7 @@ jobs:
 
   release-assets:
     # when a draft release was just created: build wheel+sdist, export the
-    # SPDX SBOM from GitHub's dependency graph, checksum everything, attest
+    # CycloneDX and SPDX SBOMs, checksum everything, attest
     # build provenance (SLSA), upload the lot to the DRAFT release and only
     # then publish it -- so the release becomes immutable WITH its assets
     # (draft-then-publish flow; release_created and tag_name fire for draft
@@ -61,7 +62,21 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.19"
       - run: uv build
+      - name: Remove the dist/.gitignore that uv build creates
+        # uv build drops a .gitignore into dist/; "subject-path: dist/*" below
+        # would attest it as a stray subject next to the real artifacts
+        # (observed on this repository's v0.7.0), so delete it before the
+        # SBOM, checksum and attestation steps run.
+        run: rm -f dist/.gitignore
+      - name: Export CycloneDX SBOM from uv.lock
+        # uv-native SBOM, faithful to the exact locked resolution; complements
+        # the dependency-graph SPDX export below. The cyclonedx1.5 format is
+        # still marked preview by uv, which is why the uv binary is pinned
+        # (setup-uv "version:" above must match the version this was tested on).
+        run: uv export --frozen --format cyclonedx1.5 --output-file dist/sbom.cdx.json
       - name: Export SPDX SBOM from the dependency graph
         run: gh api "repos/$REPO/dependency-graph/sbom" --jq .sbom > dist/sbom.spdx.json
         env:

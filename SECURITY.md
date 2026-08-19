@@ -40,8 +40,10 @@ on top.
 
 ## Verifying release assets
 
-Each release ships the wheel, the sdist, an SPDX SBOM (`sbom.spdx.json`),
-SHA-256 checksums (`SHA256SUMS`) and GitHub build-provenance attestations.
+Each release ships the wheel, the sdist, a CycloneDX SBOM exported from
+`uv.lock` (`sbom.cdx.json`), an SPDX SBOM from the dependency graph
+(`sbom.spdx.json`), SHA-256 checksums (`SHA256SUMS`) and GitHub
+build-provenance attestations.
 To verify a downloaded asset:
 
 ```bash

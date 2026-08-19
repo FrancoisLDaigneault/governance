@@ -2,11 +2,15 @@
 name = "governance-tools"
 version = "0.7.0"
 description = "Apply and audit the GitHub repository governance baseline across a fleet"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = []
 
 [build-system]
-requires = ["hatchling"]
+# >=1.27 for PEP 639 license metadata; <2 so a release build cannot silently
+# jump a major version of the build backend (it is not covered by uv.lock)
+requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -14,6 +18,7 @@ packages = ["src/governance_tools"]
 
 [dependency-groups]
 dev = [
+    "deptry>=0.25.1,<0.26",
     "hypothesis>=6.165.10",
     "mypy>=2.3.1",
     "pre-commit>=4.6.2",
@@ -26,7 +31,7 @@ dev = [
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "PL", "C90"]
+select = ["E", "F", "W", "I", "PL", "C90", "S"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8
@@ -36,8 +41,14 @@ max-statements = 30
 max-args = 5
 
 [tool.ruff.lint.per-file-ignores]
-# Tests compare literal counts and contents: PLR2004 is noise there.
-"tests/*" = ["PLR2004"]
+# Tests compare literal counts and contents (PLR2004 is noise there) and
+# lean on assert by design (S101 is pytest's contract).
+"tests/*" = ["PLR2004", "S101"]
+
+[tool.deptry]
+# The runtime package is stdlib-only (dependencies = []) except for the gh
+# CLI, which is an external binary, not a Python import; deptry keeps that
+# invariant honest by flagging any non-stdlib import that sneaks into src/.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

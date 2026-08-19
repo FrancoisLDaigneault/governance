@@ -61,8 +61,11 @@ class Gh:
     """Real backend: runs the `gh` executable."""
 
     def run(self, args: Sequence[str], stdin: str | None = None) -> GhResult:
-        completed = subprocess.run(
-            ["gh", *args],
+        # The one deliberate subprocess call in the package (ADR-0003): list
+        # form (no shell), and "gh" resolves through PATH on purpose - its
+        # install location varies per platform and per user.
+        completed = subprocess.run(  # noqa: S603
+            ["gh", *args],  # noqa: S607
             input=stdin,
             capture_output=True,
             text=True,
