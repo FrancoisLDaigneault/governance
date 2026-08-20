@@ -85,8 +85,9 @@ fake `gh` layer, so mutations are recorded and "no write without `--apply`"
 is provable.
 
 CI adds a locked install (`uv sync --locked`), gitleaks over the full git
-history, `uv audit --locked`, zizmor and a weekly scheduled run; CodeQL and
-OpenSSF Scorecard analyse the repository on their own cadence.
+history, Semgrep CE over `src` and `scripts`, `uv audit --locked`, zizmor and a
+weekly scheduled run; CodeQL and OpenSSF Scorecard analyse the repository on
+their own cadence.
 
 ## Project documents
 
