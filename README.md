@@ -21,7 +21,7 @@ that organization are out of scope.
 | `src/governance_tools/baseline.json` | Machine-readable desired state: 25 controls (14 repository-scope, 11 organization-scope), each with its read endpoint, a jq projection, the desired value and the corrective API call; a control may carry per-repository `overrides` when one target's desired state legitimately differs (`.github` requires its own `CodeQL` and `validation` contexts instead of the complete Python-profile context set). Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
 | `scripts/bootstrap.py` | Applies the baseline to one repository, or to one organization with `--org`. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant target changes nothing and exits 0. |
 | `scripts/audit.py` | Compliance matrix for `fld-forge` (`--all` = every non-archived repository plus the organization section). Exit 1 on any drift, error or skip. |
-| `src/governance_tools/` | The package: `control` (the checked control value and its per-target overrides), `baseline` (load and validate), `gh` (the only network IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `check` (per-control classification), `bootstrap`, `org` and `audit` (orchestration), `matrix` and `report` (rendering), `scheduled_audit` (the scheduled-task wrapper; writes only its own log files). |
+| `src/governance_tools/` | The package: `control` (the checked control value and its per-target overrides), `identifiers` (target validation), `baseline` (load and validate), `gh` (the only network IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `check` (per-control classification), `repository` (shared repository checks), `bootstrap`, `org` and `audit` (orchestration), `matrix` and `report` (rendering), `scheduled_audit` (the scheduled-task wrapper; writes only its own log files). |
 
 ## Setup
 
@@ -76,14 +76,18 @@ reason and the web-UI path, instead of claiming a correction that never landed.
 
 `uv run ruff check .`, `uv run ruff format --check .`,
 `uv run ty check --error-on-warning src scripts tests`, `uv run mypy`,
-`uv run deptry src` (the package must stay stdlib-only) and
-`uv run pytest -q` (90% branch-coverage floor). All six run in the
-CI quality job and via `just check`; the pre-commit framework
+`uv run deptry src` (the package must stay stdlib-only),
+`uv run lint-imports` (the architectural seams) and `uv run pytest -q`
+(90% branch-coverage floor). All seven run in the CI quality job and via
+`just check`; the pre-commit framework
 (`.pre-commit-config.yaml`) runs them at each commit, plus hygiene checks
 and ruff autofix through its pinned mirror hooks. The
 suite never touches the network: every test drives the real code through a
 fake `gh` layer, so mutations are recorded and "no write without `--apply`"
-is provable.
+is provable. Import Linter keeps `audit` and `bootstrap` independent and keeps
+the desired-state loader from depending on the GitHub adapter. Ruff TID251
+confines process and network APIs to `gh.py` and prevents production modules
+from importing tests or command wrappers.
 
 CI adds a locked install (`uv sync --locked`), gitleaks over the full git
 history, Semgrep CE over `src` and `scripts`, both `uv audit --locked` and

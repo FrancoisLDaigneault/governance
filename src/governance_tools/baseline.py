@@ -18,7 +18,7 @@ from governance_tools.control import (
     JsonDict,
     Override,
 )
-from governance_tools.gh import is_valid_repo
+from governance_tools.identifiers import is_valid_repo
 
 # baseline.json ships inside the package, so an installed wheel can find it;
 # a repo-root path would only resolve for an editable install.

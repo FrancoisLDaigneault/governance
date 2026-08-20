@@ -7,13 +7,14 @@ silently dropped, so the audit can never exit 0 with something unaudited.
 import sys
 
 from governance_tools.baseline import load_controls, split_by_scope
-from governance_tools.bootstrap import check_repo
 from governance_tools.control import Control
-from governance_tools.gh import Gh, GhClient, is_valid_repo, list_repos
+from governance_tools.gh import Gh, GhClient, list_repos
+from governance_tools.identifiers import is_valid_repo
 from governance_tools.matrix import count_cells, print_totals, render_matrix
 from governance_tools.org import audit_orgs
 from governance_tools.report import RepoReport, use_unix_newlines
 from governance_tools.report import statuses_for as _statuses_for
+from governance_tools.repository import check_repo
 
 USAGE = "usage: audit.py [--all | OWNER/REPO ...]"
 FLEET_ORG = "fld-forge"

@@ -5,10 +5,11 @@ GitHub **repository and organization settings** for the `fld-forge` organization
 Repositories outside that organization are not part of its fleet.
 
 Layout: `src/governance_tools/` (`baseline` loads and validates
-`baseline.json`, `gh` is the only network IO, `compare` is pure comparison
-plus the stricter-than-baseline guard, `controls` does per-control
-read/apply, `check` classifies one control, `bootstrap`, `org` and `audit`
-orchestrate, `matrix` and `report` render, `scheduled_audit` wraps the audit
+`baseline.json`, `identifiers` validates targets, `gh` is the only network IO,
+`compare` is pure comparison plus the stricter-than-baseline guard, `controls`
+does per-control read/apply, `check` classifies one control, `repository` shares
+repository checks, `bootstrap`, `org` and `audit` orchestrate, `matrix` and
+`report` render, `scheduled_audit` wraps the audit
 for the scheduled task and writes only its own log files), `scripts/` (thin
 wrappers), `tests/` (unit / integration); local gates run through the
 pre-commit framework (`.pre-commit-config.yaml`).
@@ -57,7 +58,7 @@ change the test that describes it, in the same commit, and say so.
 Setup: `uv sync --locked` then `uv run pre-commit install --install-hooks`
 (or `just setup`, which also clears any legacy `core.hooksPath`). Python 3.12+.
 
-The six quality commands (also available as `just check`; the pre-commit
+The seven quality commands (also available as `just check`; the pre-commit
 hooks and the CI quality job run exactly these):
 
 ```bash
@@ -66,6 +67,7 @@ uv run ruff format --check .
 uv run ty check --error-on-warning src scripts tests
 uv run mypy
 uv run deptry src
+uv run lint-imports
 uv run pytest -q
 ```
 
