@@ -17,6 +17,7 @@ themselves.
 | [0008](0008-pre-commit-framework-replaces-the-shell-hook.md) | pre-commit framework replaces the versioned shell hook | accepted |
 | [0009](0009-required-status-checks-per-repository.md) | Required status checks, per repository, behind the release-please token | accepted |
 | [0010](0010-fleet-standard-alignment.md) | Alignment on the fleet repository standard | accepted |
+| [0011](0011-uv-native-dependency-audit.md) | uv-native dependency audit | accepted |
 
 Conventions: MADR-lite, numbered, immutable once accepted (supersede with a
 new ADR instead of editing history). New significant decisions get the next

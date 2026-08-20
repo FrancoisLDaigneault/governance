@@ -75,8 +75,8 @@ jobs:
           tar -xzf /tmp/gitleaks_8.24.3_linux_x64.tar.gz -C /tmp gitleaks
           cd "$GITHUB_WORKSPACE" && /tmp/gitleaks git --redact -v .
 
-  pip-audit:
-    # vulnerability audit of the locked environment (uv.lock exported, then audited)
+  uv-audit:
+    # vulnerability audit of the locked dependency graph
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -86,8 +86,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "0.11.19"
-      - run: uv export --no-emit-project --no-hashes --format requirements-txt -o /tmp/requirements.txt
-      - run: uvx pip-audit==2.10.1 --no-deps -r /tmp/requirements.txt
+      - run: uv audit --locked
 
   zizmor:
     # static audit of the GitHub Actions workflows themselves; fails on any finding
