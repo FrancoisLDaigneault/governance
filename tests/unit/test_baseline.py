@@ -330,15 +330,21 @@ def test_non_object_override_is_rejected(tmp_path: Path) -> None:
 
 
 def test_shipped_main_protection_requires_the_quality_gates() -> None:
-    """The five CI contexts, the strict policy, and the checks rule type (ADR-0009)."""
+    """The six required CI contexts match the strict apply payload (ADR-0009)."""
     control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
-    assert control.desired["checks"] == {
-        "contexts": ["CodeQL", "quality", "secrets-scan", "uv-audit", "zizmor"],
-        "strict": True,
-    }
+    contexts = ["CodeQL", "quality", "secrets-scan", "semgrep", "uv-audit", "zizmor"]
+    assert control.desired["checks"] == {"contexts": contexts, "strict": True}
     rule_types = control.desired["rule_types"]
     assert isinstance(rule_types, list)
     assert "required_status_checks" in rule_types
+    assert control.apply_payload is not None
+    rules = control.apply_payload["rules"]
+    assert isinstance(rules, list)
+    required = next(rule for rule in rules if rule["type"] == "required_status_checks")
+    assert required["parameters"] == {
+        "strict_required_status_checks_policy": True,
+        "required_status_checks": [{"context": context} for context in contexts],
+    }
 
 
 def test_shipped_dot_github_override_carries_no_checks() -> None:
