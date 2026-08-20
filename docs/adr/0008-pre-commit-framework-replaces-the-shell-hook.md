@@ -17,10 +17,10 @@ a prerequisite for required status checks in the repository rulesets.
 ## Decision
 
 Adopt the pre-commit framework (`.pre-commit-config.yaml`): hygiene hooks,
-ruff autofix + format, and the official `uv-lock` hook, with mypy and
-pytest as `repo: local` / `language: system` hooks so they run in the
-project venv - the isolated mypy mirror cannot see project dependencies and
-drifts from CI. `hooks/pre-commit` and the `core.hooksPath` setting are
+ruff autofix + format, and the official `uv-lock` hook, with the type checker
+and pytest as `repo: local` / `language: system` hooks so they run in the
+project venv - isolated mirrors cannot see project dependencies and can drift
+from CI. `hooks/pre-commit` and the `core.hooksPath` setting are
 removed (`just setup` unsets it and installs the framework hooks); the CI
 shellcheck job is retired with the shell script it existed to lint. CI
 remains the authority: it runs the same gate commands directly, not through

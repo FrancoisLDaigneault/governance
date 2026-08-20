@@ -19,7 +19,7 @@ plus careful assignment forms.
 ## Decision
 
 Rewrite in Python 3.12 with the standard project shape used across the fleet
-(uv, src layout, ruff, mypy --strict, pytest with a branch-coverage floor). Keep
+(uv, src layout, ruff, strict static analysis, pytest with a branch-coverage floor). Keep
 `baseline.json` unchanged: the control semantics are the asset, the language is
 not.
 

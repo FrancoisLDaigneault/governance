@@ -7,7 +7,6 @@
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white)](pyproject.toml)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![mypy](https://img.shields.io/badge/mypy-strict-blue?logo=python&logoColor=white)](pyproject.toml)
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25%20(branch)-brightgreen)](pyproject.toml)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](.pre-commit-config.yaml)
 [![License](https://img.shields.io/github/license/fld-forge/governance)](LICENSE)
@@ -74,8 +73,9 @@ reason and the web-UI path, instead of claiming a correction that never landed.
 
 ## Quality gates
 
-`uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`,
-`uv run deptry src` (the package must stay stdlib-only) and
+`uv run ruff check .`, `uv run ruff format --check .`,
+`uv run ty check --error-on-warning src scripts tests`, `uv run deptry src`
+(the package must stay stdlib-only) and
 `uv run pytest -q` (90% branch-coverage floor). All five run in the
 CI quality job and via `just check`; the pre-commit framework
 (`.pre-commit-config.yaml`) runs them at each commit, plus hygiene checks
