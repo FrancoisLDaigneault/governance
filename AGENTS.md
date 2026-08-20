@@ -63,7 +63,7 @@ hooks and the CI quality job run exactly these):
 ```bash
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy
+uv run ty check --error-on-warning src scripts tests
 uv run deptry src
 uv run pytest -q
 ```

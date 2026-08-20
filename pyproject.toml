@@ -20,11 +20,11 @@ packages = ["src/governance_tools"]
 dev = [
     "deptry>=0.25.1,<0.26",
     "hypothesis>=6.165.10",
-    "mypy>=2.3.1",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.3",
+    "ty>=0.0.73",
 ]
 
 [tool.ruff]
@@ -63,10 +63,8 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 
-[tool.mypy]
-strict = true
-files = ["src", "scripts", "tests"]
-python_version = "3.12"
+[tool.ty.environment]
+python-version = "3.12"
 
 [tool.pyright]
 # point pyright-based checkers (including editor integrations) at the uv venv

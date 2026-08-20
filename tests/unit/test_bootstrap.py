@@ -1,6 +1,7 @@
 """Classification, exit codes and the dry-run-by-default invariant."""
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
@@ -150,7 +151,7 @@ def test_probe_answering_neither_true_nor_false_is_err() -> None:
 
 def test_visibility_gate_precedes_the_probe() -> None:
     """A public-only control on a private repo must not spend a probe call."""
-    probed_public = Control(**{**PROBED.__dict__, "applicability": "public"})
+    probed_public = replace(PROBED, applicability="public")
     gh = _probed_gh(ok("false"))
     assert check_control(gh, probed_public, "o/r", "private", Mode()).status == NA
     assert gh.calls == []
