@@ -20,44 +20,45 @@ the checks report. Second, the fleet audit proved the enforcement gap is real:
 every quality gate in the fleet is green by discipline, not by constraint —
 nothing on the platform refuses a merge with red CI.
 
-An organization-wide rule was considered and rejected: `fld-forge/.github`
-carries no CI at all (community files and ruleset definitions only), so a
-required-checks rule in the `mature-discipline` org ruleset would block every
-merge there permanently, and the check contexts differ between repositories.
+An organization-wide rule was considered and rejected: check contexts differ
+between repositories. At the time of this decision, `fld-forge/.github`
+carried no CI at all; it now emits its own `CodeQL` and `validation` contexts,
+but still does not emit the complete Python-profile context set.
 
 ## Decision
 
 Required status checks are governed **per repository**, in the repo-level
 `main-protection` ruleset of the baseline:
 
-- The `required_status_checks` rule requires `quality`, `pip-audit`,
-  `secrets-scan`, `zizmor` and `CodeQL`, with
-  `strict_required_status_checks_policy: true` (the branch must be up to date
-  with the base before merging).
-- `fld-forge/.github` is carved out through a baseline **override**: a control
-  may carry per-target replacement `desired`/`apply_payload` values, keyed by
-  OWNER/REPO. Same projection, same endpoints — only what is desired differs,
-  and the full per-target value stays readable in `baseline.json`.
+- The default `required_status_checks` rule requires `CodeQL`,
+  `dependency-review`, `pip-audit`, `quality`, `secrets-scan`, `semgrep`,
+  `uv-audit` and `zizmor`, with `strict_required_status_checks_policy: true`
+  (the branch must be up to date with the base before merging).
+- `fld-forge/.github` is carved out through a baseline **override** requiring
+  exactly `CodeQL` and `validation`, the contexts that repository emits. A
+  control may carry per-target replacement `desired`/`apply_payload` values,
+  keyed by OWNER/REPO. Same projection, same endpoints — only what is desired
+  differs, and the full per-target value stays readable in `baseline.json`.
 - The `mature-discipline` org ruleset is hardened to squash-only merges
   (`allowed_merge_methods: ["squash"]`) in the same wave: rebase merges rewrite
   commits without re-signing them, which `required_signatures` then rejects.
 
-**Activation is deliberately deferred.** This ADR lands the definitions; the
-live rulesets are only normalized to them (phase 2) after
-`RELEASE_PLEASE_TOKEN` exists in every repository whose release PRs must
-satisfy the checks. Applying the checks rule before the token is in place
-recreates the ADR-0005 deadlock, exactly as that record warned.
+Activation follows the definitions: each live ruleset is normalized only
+after its required contexts have reported successfully on a pull request. The
+release repositories also require `RELEASE_PLEASE_TOKEN`; applying their
+checks before that token exists recreates the ADR-0005 deadlock. The `.github`
+contexts have no release-token dependency.
 
 ## Consequences
 
-Until phase 2 runs, the audit reports DRIFT on `ruleset-main-protection` for
-`pi-config` and `governance`: live rulesets do not yet carry the checks rule.
-That drift is the honest state of a fleet in transition, not noise to silence.
+Until a changed baseline is applied, the audit reports DRIFT for the affected
+target. That drift is the honest state of a fleet in transition, not noise to
+silence.
 
-After phase 2, a red or missing check blocks the merge at the platform level,
-`.github` keeps its checks-free ruleset through the override, and the audit
-guards all of it. The strict policy means a stale release PR must be updated
-(release-please force-refreshes its branches on every push to main).
+After activation, a red or missing check blocks the merge at the platform
+level. The `.github` override requires its two repository-specific contexts,
+and the audit guards all three repositories. The strict policy means a stale
+pull request must be updated before merge.
 
 The override mechanism is repo-scope only, validated at load time, and
 wholesale: an override replaces the whole desired value rather than merging

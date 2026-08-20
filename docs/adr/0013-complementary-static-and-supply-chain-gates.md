@@ -45,9 +45,9 @@ comments, and receives only `contents: read`.
 
 The `main-protection` baseline requires eight sorted contexts: `CodeQL`,
 `dependency-review`, `pip-audit`, `quality`, `secrets-scan`, `semgrep`,
-`uv-audit`, and `zizmor`, with strict status checks enabled. The `.github`
-override remains checks-free because that repository does not emit the full
-Python-profile context set.
+`uv-audit`, and `zizmor`, with strict status checks enabled. As amended on
+2026-08-20, the `.github` override requires its own `CodeQL` and `validation`
+contexts instead of the full Python-profile context set.
 
 Activation follows ADR-0009: prove every new context on feature and release
 pull requests, merge the workflows, prove them again, review the exact ruleset

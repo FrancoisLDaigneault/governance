@@ -13,13 +13,13 @@
     "a setting whose stricter value is the live one is deliberately NOT governed: the baseline must never be the reason a repository becomes less secure (see actions-workflow-permissions, and the secret-scanning validity-check and non-provider-pattern toggles left ungoverned for the same reason)",
     "scope repo (the default) means the control is keyed by OWNER/REPO and its endpoints carry {repo}; scope org means it is keyed by an organization login and its endpoints carry {org}. Loading validates that a template carries exactly the placeholder its scope requires, so an organization control can never aim at a repository endpoint",
     "manual_reason marks a control the REST API cannot correct: it is audited like any other, reports drift, and refuses to apply with that reason instead of claiming a successful write. Such a control carries no apply_method and no apply_endpoint",
-    "overrides maps OWNER/REPO to replacement desired (and apply_payload) values for that one target: same projection, same endpoints, different governed value. Introduced for required status checks, which fld-forge/.github must not require because it does not emit the complete Python-profile context set, or every merge there would wait forever on checks that never report"
+    "overrides maps OWNER/REPO to replacement desired (and apply_payload) values for that one target: same projection, same endpoints, different governed value. Introduced for required status checks: fld-forge/.github requires the CodeQL and validation contexts it emits instead of the complete Python-profile context set"
   ],
   "controls": [
     {
       "id": "ruleset-main-protection",
       "kind": "ruleset",
-      "description": "Default branch ruleset: PR required (0 approvals), force-push and deletion blocked, signed commits required, no bypass actors, and the CI quality gates (CodeQL, dependency-review, pip-audit, quality, secrets-scan, semgrep, uv-audit, zizmor) required to pass before merge with the branch up to date. ADR-0009: the checks rule only becomes safe to apply once release-please pushes with RELEASE_PLEASE_TOKEN, because bot-token pushes trigger no CI and a release PR would deadlock. fld-forge/.github does not produce the complete Python-profile context set, so its override keeps the ruleset checks-free",
+      "description": "Default branch ruleset: PR required (0 approvals), force-push and deletion blocked, signed commits required, no bypass actors, and the CI quality gates (CodeQL, dependency-review, pip-audit, quality, secrets-scan, semgrep, uv-audit, zizmor) required to pass before merge with the branch up to date. ADR-0009: the checks rule only becomes safe to apply once release-please pushes with RELEASE_PLEASE_TOKEN, because bot-token pushes trigger no CI and a release PR would deadlock. fld-forge/.github requires its own CodeQL and validation contexts instead of the complete Python-profile context set",
       "applicability": "public",
       "ruleset_name": "main-protection",
       "read_endpoint": "repos/{repo}/rulesets",
@@ -79,7 +79,7 @@
         "fld-forge/.github": {
           "desired": {
             "bypass_actors": [],
-            "checks": null,
+            "checks": {"contexts": ["CodeQL", "validation"], "strict": true},
             "conditions": {"ref_name": {"exclude": [], "include": ["~DEFAULT_BRANCH"]}},
             "enforcement": "active",
             "name": "main-protection",
@@ -90,7 +90,7 @@
               "required_approving_review_count": 0,
               "required_review_thread_resolution": false
             },
-            "rule_types": ["deletion", "non_fast_forward", "pull_request", "required_signatures"],
+            "rule_types": ["deletion", "non_fast_forward", "pull_request", "required_signatures", "required_status_checks"],
             "target": "branch"
           },
           "apply_payload": {
@@ -105,6 +105,12 @@
                 "require_code_owner_review": false,
                 "require_last_push_approval": false,
                 "required_review_thread_resolution": false}},
+              {"type": "required_status_checks", "parameters": {
+                "strict_required_status_checks_policy": true,
+                "required_status_checks": [
+                  {"context": "CodeQL"},
+                  {"context": "validation"}
+                ]}},
               {"type": "non_fast_forward"},
               {"type": "deletion"},
               {"type": "required_signatures"}

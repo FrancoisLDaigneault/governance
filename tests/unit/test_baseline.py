@@ -357,20 +357,37 @@ def test_shipped_main_protection_requires_the_quality_gates() -> None:
     }
 
 
-def test_shipped_dot_github_override_carries_no_checks() -> None:
-    """.github lacks the complete Python profile, so its override has no checks."""
+def test_shipped_dot_github_override_requires_own_gates() -> None:
+    """The .github override requires only the contexts that repository emits."""
     control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
     resolved = control.for_target("fld-forge/.github")
+    contexts = ["CodeQL", "validation"]
     assert resolved is not control
-    assert resolved.desired["checks"] is None
-    rule_types = resolved.desired["rule_types"]
-    assert isinstance(rule_types, list)
-    assert "required_status_checks" not in rule_types
+    assert resolved.desired["checks"] == {"contexts": contexts, "strict": True}
+    assert resolved.desired["bypass_actors"] == []
+    assert resolved.desired["rule_types"] == [
+        "deletion",
+        "non_fast_forward",
+        "pull_request",
+        "required_signatures",
+        "required_status_checks",
+    ]
     assert resolved.apply_payload is not None
+    assert resolved.apply_payload["bypass_actors"] == []
     rules = resolved.apply_payload["rules"]
     assert isinstance(rules, list)
-    types = [rule["type"] for rule in rules if isinstance(rule, dict)]
-    assert "required_status_checks" not in types
+    assert [rule["type"] for rule in rules] == [
+        "pull_request",
+        "required_status_checks",
+        "non_fast_forward",
+        "deletion",
+        "required_signatures",
+    ]
+    required = next(rule for rule in rules if rule["type"] == "required_status_checks")
+    assert required["parameters"] == {
+        "strict_required_status_checks_policy": True,
+        "required_status_checks": [{"context": context} for context in contexts],
+    }
 
 
 def test_shipped_mature_discipline_pins_squash_only() -> None:
