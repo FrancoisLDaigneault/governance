@@ -35,7 +35,8 @@ def test_shipped_baseline_loads() -> None:
     controls = load_controls()
     assert len(controls) == EXPECTED_CONTROLS
     assert BASELINE_PATH.is_file()
-    assert [c.id for c in controls][0] == "ruleset-main-protection"
+    # Preserve IndexError for an empty baseline; next(...) would raise StopIteration.
+    assert [c.id for c in controls][0] == "ruleset-main-protection"  # noqa: RUF015
 
 
 def test_shipped_baseline_governs_read_only_workflow_permissions() -> None:
