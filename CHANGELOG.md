@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0](https://github.com/fld-forge/governance/compare/v0.7.0...v0.8.0) (2026-08-20)
+
+
+### Features
+
+* align on the fleet repository standard ([#24](https://github.com/fld-forge/governance/issues/24)) ([3e2dc88](https://github.com/fld-forge/governance/commit/3e2dc883820e22939e630f58d614c24991f4cb85))
+* port the weekly audit wrapper from PowerShell to Python ([#25](https://github.com/fld-forge/governance/issues/25)) ([7f88fb1](https://github.com/fld-forge/governance/commit/7f88fb1d6351e87cf69635177ef287165e91456b))
+* require the CI quality checks per repository in the baseline ([#22](https://github.com/fld-forge/governance/issues/22)) ([ad13c07](https://github.com/fld-forge/governance/commit/ad13c07d850fa567a93200d732916ae37a0746b7))
+
+
+### Documentation
+
+* clarify status check exemption ([#30](https://github.com/fld-forge/governance/issues/30)) ([efbc6ab](https://github.com/fld-forge/governance/commit/efbc6ab0815f3017c38678a411d893a96c7ac672))
+
 ## [0.7.0](https://github.com/fld-forge/governance/compare/v0.6.2...v0.7.0) (2026-08-19)
 
 
