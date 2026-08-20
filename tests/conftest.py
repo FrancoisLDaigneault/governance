@@ -36,7 +36,8 @@ class FakeGh:
     """Scripted gh backend: first rule whose pattern is in the command wins."""
 
     rules: list[tuple[str, GhResult]] = field(default_factory=list)
-    default: GhResult = GhResult(0, "", "")
+    # GhResult is frozen, so sharing this immutable sentinel is safe.
+    default: GhResult = GhResult(0, "", "")  # noqa: RUF009
     calls: list[Call] = field(default_factory=list)
 
     def run(self, args: Sequence[str], stdin: str | None = None) -> GhResult:

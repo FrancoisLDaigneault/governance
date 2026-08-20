@@ -32,7 +32,7 @@ dev = [
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "PL", "C90", "S"]
+select = ["E", "F", "W", "I", "PL", "C90", "S", "N", "B", "C4", "SIM", "PERF", "RUF"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8
