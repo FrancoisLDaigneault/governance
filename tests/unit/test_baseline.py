@@ -330,9 +330,18 @@ def test_non_object_override_is_rejected(tmp_path: Path) -> None:
 
 
 def test_shipped_main_protection_requires_the_quality_gates() -> None:
-    """The six required CI contexts match the strict apply payload (ADR-0009)."""
+    """The eight required CI contexts and strict apply payload stay identical."""
     control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
-    contexts = ["CodeQL", "quality", "secrets-scan", "semgrep", "uv-audit", "zizmor"]
+    contexts = [
+        "CodeQL",
+        "dependency-review",
+        "pip-audit",
+        "quality",
+        "secrets-scan",
+        "semgrep",
+        "uv-audit",
+        "zizmor",
+    ]
     assert control.desired["checks"] == {"contexts": contexts, "strict": True}
     rule_types = control.desired["rule_types"]
     assert isinstance(rule_types, list)
@@ -348,7 +357,7 @@ def test_shipped_main_protection_requires_the_quality_gates() -> None:
 
 
 def test_shipped_dot_github_override_carries_no_checks() -> None:
-    """.github has no CI: required checks there would block every merge forever."""
+    """.github lacks the complete Python profile, so its override has no checks."""
     control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
     resolved = control.for_target("fld-forge/.github")
     assert resolved is not control

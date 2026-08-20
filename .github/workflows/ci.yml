@@ -34,6 +34,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run ty check --error-on-warning src scripts tests
+      - run: uv run mypy
       - run: uv run deptry src
       - run: uv run pytest -q
         # machine-readable reports for the artifact upload; addopts still
@@ -55,6 +56,32 @@ jobs:
             coverage.xml
             test-results.xml
           retention-days: 30
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          license-check: false
+          comment-summary-in-pr: never
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.19"
+      - run: uv export --locked --no-emit-project --format requirements-txt --output-file requirements-audit.txt > /dev/null
+      - run: uvx --from pip-audit==2.10.1 pip-audit --no-deps -r requirements-audit.txt
 
   secrets-scan:
     # git history scan, OS-independent -> ubuntu (faster)

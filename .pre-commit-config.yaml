@@ -1,8 +1,8 @@
 # Pre-commit framework configuration (https://pre-commit.com).
 # Enable with: uv run pre-commit install --install-hooks (done by `just setup`).
 # Mirror hooks are pinned to tags matching the versions locked in uv.lock;
-# ty, deptry and pytest run as local system hooks so they use the project
-# venv and stay aligned with CI (see ADR-0008).
+# ty, mypy, deptry and pytest run as local system hooks so they use the
+# project venv and stay aligned with CI (see ADR-0008).
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -34,6 +34,12 @@ repos:
       - id: ty
         name: ty (project venv)
         entry: uv run ty check --error-on-warning src scripts tests
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: mypy
+        name: mypy (strict project gate)
+        entry: uv run mypy
         language: system
         pass_filenames: false
         always_run: true

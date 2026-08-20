@@ -19,6 +19,7 @@ themselves.
 | [0010](0010-fleet-standard-alignment.md) | Alignment on the fleet repository standard | accepted |
 | [0011](0011-uv-native-dependency-audit.md) | uv-native dependency audit | accepted |
 | [0012](0012-standalone-semgrep-ce-gate.md) | Standalone Semgrep CE gate | accepted |
+| [0013](0013-complementary-static-and-supply-chain-gates.md) | Complementary static and supply-chain gates | accepted |
 
 Conventions: MADR-lite, numbered, immutable once accepted (supersede with a
 new ADR instead of editing history). New significant decisions get the next
