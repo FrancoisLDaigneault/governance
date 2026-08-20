@@ -34,9 +34,10 @@ governed settings.
 ## Automated controls
 
 Every PR and every push to `main` (plus a weekly scheduled run) is scanned by
-gitleaks (full git history), Semgrep CE over `src` and `scripts`,
-`uv audit --locked` and zizmor; weekly CodeQL analysis, GitHub secret scanning
-with push protection, and weekly Dependabot updates run on top.
+gitleaks (full git history), Semgrep CE over `src` and `scripts`, both
+`uv audit --locked` and pip-audit, and zizmor. Pull requests also run GitHub's
+Dependency Review Action. Weekly CodeQL analysis, GitHub secret scanning with
+push protection, and weekly Dependabot updates run on top.
 
 ## Verifying release assets
 

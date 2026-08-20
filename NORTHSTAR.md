@@ -39,7 +39,7 @@ Supporting indicators:
 | Fleet drift cells | not yet measured for 3 repositories plus 1 organization | trending to 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
 | Release integrity (SBOM + provenance attestation) | not yet measured (no release cut) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
-| Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, `uv audit --locked`, Dependabot, secret scanning) |
+| Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, Dependency Review, `uv audit --locked`, pip-audit, Dependabot, secret scanning) |
 | Semgrep CE findings | 0 in the adoption preflight | 0 | `uvx semgrep==1.173.0 scan --config p/python --metrics=off --error src scripts` (CI gate) |
 
 ## Maintainability
@@ -54,7 +54,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Ruff violations (C901=8, PLR0915=30, PLR0913=5) | 0 | 0 | `uv run ruff check .` (pre-commit framework + CI) |
+| Static-analysis violations | 0 | 0 | Ruff, ty, mypy, deptry, Semgrep and CodeQL gates |
 | src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
 | Green tests | 225 (211 unit / 14 integration) | 100% green | `uv run pytest` (pre-commit framework + CI) |
 | Modules performing network IO | 1 of 12 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |

@@ -31,6 +31,7 @@ and the CI quality job run them too):
 uv run ruff check .
 uv run ruff format --check .
 uv run ty check --error-on-warning src scripts tests
+uv run mypy
 uv run deptry src
 uv run pytest -q
 ```
@@ -44,7 +45,7 @@ with `uv sync --locked` to prove the lockfile is reproducible.
 - Cyclomatic complexity (McCabe) <= 8
 - <= 30 statements per function, <= 5 arguments
 - Lines <= 100 characters
-- Static typing with warnings treated as errors (`ty check --error-on-warning`)
+- Complementary static typing gates: ty warnings fail and mypy runs in strict mode
 - <= 200 lines per module, <= 20 per script - checked by `tests/unit/test_standards.py`
 - English only in code, comments and docs. `tests/unit/test_language.py`
   enforces this with an accent heuristic over a defined file set (generated
