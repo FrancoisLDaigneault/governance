@@ -333,7 +333,7 @@ def test_shipped_main_protection_requires_the_quality_gates() -> None:
     """The five CI contexts, the strict policy, and the checks rule type (ADR-0009)."""
     control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
     assert control.desired["checks"] == {
-        "contexts": ["CodeQL", "pip-audit", "quality", "secrets-scan", "zizmor"],
+        "contexts": ["CodeQL", "quality", "secrets-scan", "uv-audit", "zizmor"],
         "strict": True,
     }
     rule_types = control.desired["rule_types"]

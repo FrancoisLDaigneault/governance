@@ -39,7 +39,7 @@ Supporting indicators:
 | Fleet drift cells | not yet measured for 3 repositories plus 1 organization | trending to 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
 | Release integrity (SBOM + provenance attestation) | not yet measured (no release cut) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
-| Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, pip-audit, Dependabot, secret scanning) |
+| Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, `uv audit --locked`, Dependabot, secret scanning) |
 
 ## Maintainability
 
