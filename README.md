@@ -3,6 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/fld-forge/governance/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI)](https://github.com/fld-forge/governance/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/fld-forge/governance/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fld-forge/governance/security/code-scanning)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/fld-forge/governance/badge)](https://scorecard.dev/viewer/?uri=github.com/fld-forge/governance)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14182/badge)](https://www.bestpractices.dev/projects/14182)
 [![Release](https://img.shields.io/github/v/release/fld-forge/governance?logo=github)](https://github.com/fld-forge/governance/releases)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white)](pyproject.toml)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
