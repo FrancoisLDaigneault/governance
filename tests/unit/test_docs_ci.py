@@ -117,7 +117,7 @@ def test_release_workflow_documented() -> None:
     assert "RELEASE_PLEASE_TOKEN" in agents, (
         "AGENTS.md: the release-PR checks quirk must name RELEASE_PLEASE_TOKEN"
     )
-    for anchor in ("merge_method=squash", "verification.verified"):
+    for anchor in ("merge_method=squash", "-f sha=", "verification.verified"):
         assert anchor in agents, (
             f"AGENTS.md: the guarded REST squash runbook for release PRs must "
             f"quote {anchor!r} (required_signatures blocks GraphQL merges of "
