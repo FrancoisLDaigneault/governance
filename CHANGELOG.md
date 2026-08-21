@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.1](https://github.com/fld-forge/governance/compare/v0.8.0...v0.8.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **docs:** eliminate documentation drift and add derive-check gates ([#39](https://github.com/fld-forge/governance/issues/39)) ([9e237de](https://github.com/fld-forge/governance/commit/9e237de009b80affbfa82f7bfaab8eee311e7cfa))
+* make outside collaborator control plan-aware ([#37](https://github.com/fld-forge/governance/issues/37)) ([675ef69](https://github.com/fld-forge/governance/commit/675ef69f4140d5d218c1bc164d99965dfaf1c46f))
+
+
+### Documentation
+
+* add OpenSSF Best Practices badge ([#34](https://github.com/fld-forge/governance/issues/34)) ([b7f5d8b](https://github.com/fld-forge/governance/commit/b7f5d8b0f83a7b4ecb802bb297bbb3798ffee30b))
+* refresh measured governance north star ([#38](https://github.com/fld-forge/governance/issues/38)) ([25ea7fa](https://github.com/fld-forge/governance/commit/25ea7fa922e8c6ae460e32bf890d71cd74ad93a8))
+
 ## [0.8.0](https://github.com/fld-forge/governance/compare/v0.7.0...v0.8.0) (2026-08-20)
 
 
