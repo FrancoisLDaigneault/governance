@@ -44,9 +44,7 @@ max-args = 5
 
 [tool.ruff.lint.per-file-ignores]
 # Tests compare literal counts and contents (PLR2004 is noise there) and
-# lean on assert by design (S101 is pytest's contract). The gh adapter is the
-# one production module allowed to use subprocess; tests are exempt.
-"src/governance_tools/gh.py" = ["TID251"]
+# lean on assert by design (S101 is pytest's contract). Tests are exempt.
 "tests/*" = ["PLR2004", "S101", "TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]

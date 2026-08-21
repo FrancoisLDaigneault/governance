@@ -4,7 +4,7 @@ Everything else takes a GhClient and stays pure, so the whole tool is testable
 without touching GitHub.
 """
 
-import subprocess
+import subprocess  # noqa: TID251
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
