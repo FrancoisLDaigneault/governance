@@ -104,6 +104,36 @@ def test_gate_commands_in_precommit_hooks() -> None:
     assert not missing, f".pre-commit-config.yaml: local-hook entries missing: {missing}"
 
 
+def _hook_block(config: str, hook_id: str) -> list[str]:
+    """The lines of one hook entry, from its `- id:` up to the next entry."""
+    lines = config.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.strip() == f"- id: {hook_id}"), None)
+    assert start is not None, f".pre-commit-config.yaml: hook {hook_id!r} not found"
+    block = [lines[start]]
+    for line in lines[start + 1 :]:
+        if re.match(r"\s*- (id|repo):", line):
+            break
+        block.append(line)
+    return block
+
+
+def test_secrets_gate_always_runs() -> None:
+    """The secrets gate reads the index itself, so it must not be file-filtered.
+
+    pre-commit skips a hook whose filtered file list came out empty unless it
+    declares `always_run`; `pass_filenames: false` does not exempt it, that flag
+    is read after the skip decision. gitleaks scans the staged diff on its own,
+    exactly like the local whole-project gates that all carry `always_run: true`
+    here, so it belongs to the same class and is asserted with them.
+    """
+    block = _hook_block(_text(".pre-commit-config.yaml"), "gitleaks")
+    assert any(line.strip() == "always_run: true" for line in block), (
+        ".pre-commit-config.yaml: the gitleaks hook must declare 'always_run: true', "
+        "like every other whole-project gate, or pre-commit skips it when no "
+        "staged file matches a filter"
+    )
+
+
 def test_size_caps_documented() -> None:
     module_cap = test_standards.MAX_MODULE_LINES
     script_cap = test_standards.MAX_SCRIPT_LINES

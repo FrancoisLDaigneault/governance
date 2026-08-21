@@ -20,7 +20,11 @@ repos:
     # a secret can still be caught before it is pushed and burned.
     rev: v8.24.3
     hooks:
+      # always_run: same reason as the local gates below - this hook reads the
+      # staged diff itself, so it must not be skipped on a commit whose staged
+      # files match no filter.
       - id: gitleaks
+        always_run: true
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # rev matches the ruff version in uv.lock
