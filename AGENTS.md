@@ -94,8 +94,10 @@ carries its assets.
 - `uv run` may rewrite `uv.lock` when `pyproject.toml` is ahead of it
   (post-release window). Restore with `git checkout -- uv.lock` unless the
   change is intended.
-- release-please PRs show no CI checks (GitHub anti-recursion with
-  `GITHUB_TOKEN`). Inspect the PR diff and rely on post-merge CI on `main`.
+- release-please PRs carry CI checks only while the `RELEASE_PLEASE_TOKEN`
+  secret exists: the workflow falls back to `github.token`, whose pushes
+  trigger no CI (GitHub anti-recursion). If a release PR shows no checks,
+  inspect the diff and rely on post-merge CI on `main`.
 - CRLF warnings on Windows are checkout-side only; committed blobs are LF
   (`.gitattributes` enforces `eol=lf`).
 - Repo-local SSH commit signing is configured (`commit.gpgsign true`);

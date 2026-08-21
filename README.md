@@ -204,17 +204,23 @@ matrix - never dropped from the report. A fleet audit therefore cannot exit
 
 ## Scheduled audit
 
-The audit runs weekly from a **local scheduled task** (`governance-fleet-audit`,
-Wednesdays at 09:00 local), which calls `scripts/weekly_audit.py`. It writes the
-whole matrix to a timestamped log under `governance-audit/` and keeps the newest
-twelve. Drift is a finding, not a failure: the wrapper succeeds whether the audit
-reports clean or drifting, and fails only when the audit itself could not run.
+The audit runs weekly from two mechanisms. A **local scheduled task**
+(`governance-fleet-audit`, Wednesdays at 09:00 local) calls
+`scripts/weekly_audit.py`, writes the whole matrix to a timestamped log under
+`governance-audit/` and keeps the newest twelve. Drift is a finding, not a
+failure: the wrapper succeeds whether the audit reports clean or drifting, and
+fails only when the audit itself could not run.
 
-`.github/workflows/fleet-audit.yml` is kept but **dormant**. It requires a
-repository secret that does not exist and fails loudly without it, by design - an
-audit that silently reported an empty fleet would read as a clean one. A
-fine-grained token scoped read-only to `fld-forge` can enumerate the fixed fleet.
-The re-create command, exit-code policy and credential guidance are in
+The **hosted workflow** (`.github/workflows/fleet-audit.yml`) runs the same
+audit from GitHub-hosted runners on its own weekly schedule and on demand,
+publishes the matrix in the run summary, and keeps a single drift tracking
+issue in step with organization drift. It authenticates with the
+`GOVERNANCE_AUDIT_TOKEN` repository secret (a fine-grained token scoped
+read-only to `fld-forge`) and fails loudly when that secret is missing or the
+matrix carries no fleet rows, by design - an audit that silently reported an
+empty fleet would read as a clean one. Current run state:
+`gh run list --workflow=fleet-audit.yml`. The re-create command, exit-code
+policy and credential guidance are in
 [`docs/scheduled-audit.md`](docs/scheduled-audit.md).
 
 ## Org-migration note
