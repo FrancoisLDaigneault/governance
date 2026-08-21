@@ -32,8 +32,8 @@ uv run pre-commit install --install-hooks   # installs the framework hooks (.pre
 
 Or `just setup`. Requirements: `gh` authenticated with the `repo` scope,
 [uv](https://docs.astral.sh/uv/) and Python 3.12+ (uv downloads it
-automatically via `.python-version`). A fleet audit costs roughly 3 seconds
-per repository (a dozen API calls each).
+automatically via `.python-version`). A fleet audit costs roughly a dozen
+API calls per repository.
 
 ## Usage
 

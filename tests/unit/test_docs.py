@@ -229,6 +229,27 @@ def test_controls_count_documented() -> None:
     )
 
 
+def test_northstar_required_checks_count() -> None:
+    """The required-PR-checks row states how many contexts the main-protection
+    ruleset requires; the count must track baseline.json, not memory."""
+    control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
+    checks = control.desired["checks"]
+    assert isinstance(checks, dict), "ruleset-main-protection: desired.checks is not a dict"
+    contexts = checks["contexts"]
+    assert isinstance(contexts, list), "ruleset-main-protection: checks.contexts is not a list"
+    expected = len(contexts)
+    row = re.search(
+        r"Required pull-request checks \| (\d+) of (\d+) green \| (\d+) of (\d+) green",
+        _flat("NORTHSTAR.md"),
+    )
+    assert row, "NORTHSTAR.md: 'Required pull-request checks | N of M green' row not found"
+    wrong = [g for g in row.groups() if int(g) != expected]
+    assert not wrong, (
+        f"NORTHSTAR.md required-checks row says {row.groups()}, "
+        f"baseline.json requires {expected} contexts"
+    )
+
+
 def test_controls_section_generated() -> None:
     """The README controls list is generated from baseline.json; a stale,
     hand-edited or marker-less block fails here until the renderer is rerun."""
