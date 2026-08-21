@@ -9,7 +9,8 @@ Layout: `src/governance_tools/` (`baseline` loads and validates
 `compare` is pure comparison plus the stricter-than-baseline guard, `controls`
 does per-control read/apply, `check` classifies one control, `repository` shares
 repository checks, `bootstrap`, `org` and `audit` orchestrate, `matrix` and
-`report` render, `scheduled_audit` wraps the audit
+`report` render, `readme` renders the generated README controls
+block, `scheduled_audit` wraps the audit
 for the scheduled task and writes only its own log files), `scripts/` (thin
 wrappers), `tests/` (unit / integration); local gates run through the
 pre-commit framework (`.pre-commit-config.yaml`).

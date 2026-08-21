@@ -40,6 +40,7 @@ class Control:
     apply_method: str
     apply_endpoint: str
     scope: str = "repo"
+    description: str = ""
     read_endpoint: str | None = None
     projection: str | None = None
     ruleset_name: str | None = None

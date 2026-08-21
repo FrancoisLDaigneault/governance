@@ -14,6 +14,7 @@ import tomllib
 import test_standards
 
 from governance_tools.baseline import load_controls
+from governance_tools.readme import render_block, updated_text
 
 REPO = test_standards.REPO
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
@@ -166,6 +167,18 @@ def test_controls_count_documented() -> None:
     assert found == actual, (
         f"NORTHSTAR.md governed-controls row says {found}, baseline.json defines {actual}"
     )
+
+
+def test_controls_section_generated() -> None:
+    """The README controls list is generated from baseline.json; a stale,
+    hand-edited or marker-less block fails here until the renderer is rerun."""
+    text = _text("README.md")
+    hint = "run 'uv run python scripts/render_readme.py --apply'"
+    try:
+        wanted = updated_text(text, render_block(load_controls()))
+    except ValueError as exc:
+        raise AssertionError(f"{exc} - {hint}") from exc
+    assert wanted == text, f"README.md controls block is stale - {hint}"
 
 
 _NUMBER_WORDS = {
