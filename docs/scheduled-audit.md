@@ -54,7 +54,7 @@ The audit exits 1 when it finds drift. The wrapper reports success for both 0
 audit refusing to report a partial fleet.
 
 Mapping drift to a failing task would be worse than useless here: the
-organization carries two controls that only a human can clear, so the task would
+organization carries four controls that only a human can clear, so the task would
 sit permanently red, and a genuinely broken audit would be indistinguishable
 from an ordinary drifting one. `Last Result` answers whether the audit **ran**;
 the log answers what it **found**.

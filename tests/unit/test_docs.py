@@ -142,10 +142,73 @@ def test_python_version_documented() -> None:
 
 
 def test_controls_count_documented() -> None:
-    """The README states how many controls the baseline governs."""
-    actual = len(load_controls())
-    match = re.search(r"(\d+) controls", _flat("README.md"))
-    assert match, "README.md: 'N controls' claim not found"
-    assert int(match.group(1)) == actual, (
-        f"README.md says {match.group(1)} controls, baseline.json defines {actual}"
+    """The README and NORTHSTAR state how many controls the baseline governs,
+    split by scope; the split must track baseline.json, not memory."""
+    controls = load_controls()
+    actual = (
+        len(controls),
+        sum(1 for c in controls if c.scope == "repo"),
+        sum(1 for c in controls if c.scope == "org"),
+    )
+    match = re.search(
+        r"(\d+) controls \((\d+) repository-scope, (\d+) organization-scope\)",
+        _flat("README.md"),
+    )
+    assert match, "README.md: 'N controls (R repository-scope, O organization-scope)' not found"
+    found = tuple(int(g) for g in match.groups())
+    assert found == actual, f"README.md says controls {found}, baseline.json defines {actual}"
+    row = re.search(
+        r"Governed controls \| (\d+) \((\d+) repository, (\d+) organization\)",
+        _flat("NORTHSTAR.md"),
+    )
+    assert row, "NORTHSTAR.md: 'Governed controls | N (R repository, O organization)' row not found"
+    found = tuple(int(g) for g in row.groups())
+    assert found == actual, (
+        f"NORTHSTAR.md governed-controls row says {found}, baseline.json defines {actual}"
+    )
+
+
+_NUMBER_WORDS = {
+    word: value
+    for value, word in enumerate(
+        ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine"),
+        start=1,
+    )
+}
+
+
+def test_manual_controls_documented() -> None:
+    """The README counts and lists the manual controls; both must track
+    which baseline controls actually carry a `manual_reason`."""
+    manual = sorted(c.id for c in load_controls() if c.is_manual)
+    scopes = {c.scope for c in load_controls() if c.is_manual}
+    assert scopes == {"org"}, (
+        f"manual controls now span scopes {scopes}; the README sentence "
+        "'organization controls are manual' needs rewording"
+    )
+    claim = re.search(r"(\w+) organization controls are \*\*manual\*\*", _flat("README.md"))
+    assert claim, "README.md: 'N organization controls are **manual**' claim not found"
+    assert _NUMBER_WORDS.get(claim.group(1).lower()) == len(manual), (
+        f"README.md says {claim.group(1)} manual controls, baseline.json defines {len(manual)}"
+    )
+    listed = re.search(r"are \*\*manual\*\* \(([^)]*)\)", _flat("README.md"))
+    assert listed, "README.md: manual controls are not listed by id after the claim"
+    ids = sorted(re.findall(r"`([^`]+)`", listed.group(1)))
+    assert ids == manual, f"README.md lists manual controls {ids}, baseline.json defines {manual}"
+
+
+def test_scheduled_audit_manual_count() -> None:
+    """The scheduled-audit rationale counts the controls only a human can
+    clear; that is exactly the baseline's manual set."""
+    actual = sum(1 for c in load_controls() if c.is_manual)
+    claim = re.search(
+        r"carries (\w+) controls that only a human can clear",
+        _flat("docs/scheduled-audit.md"),
+    )
+    assert claim, (
+        "docs/scheduled-audit.md: 'carries N controls that only a human can clear' not found"
+    )
+    assert _NUMBER_WORDS.get(claim.group(1).lower()) == actual, (
+        f"docs/scheduled-audit.md says {claim.group(1)} human-only controls, "
+        f"baseline.json defines {actual}"
     )

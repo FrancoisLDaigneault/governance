@@ -65,8 +65,9 @@ repository endpoint. `--all` renders the `fld-forge` repository matrix first,
 then the `fld-forge` organization section; explicit `OWNER/REPO` arguments audit
 exactly what was asked for.
 
-Three organization controls are **manual**: the security configuration, the
-member privileges GitHub exposes read-only, and the two-factor requirement. The
+Four organization controls are **manual** (`org-security-configuration`,
+`org-member-privileges-manual`, `org-outside-collaborator-invitations`,
+`org-two-factor-requirement`). The
 REST API either accepts a write and silently keeps the old value, or needs a
 multi-step operation this baseline deliberately does not automate. They are
 audited like any other control and report `MANUAL` under `--apply`, with the
