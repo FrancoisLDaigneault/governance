@@ -22,6 +22,7 @@ themselves.
 | [0013](0013-complementary-static-and-supply-chain-gates.md) | Complementary static and supply-chain gates | accepted |
 | [0014](0014-dot-github-required-status-checks.md) | Repository-specific required checks for .github | accepted |
 | [0015](0015-import-boundaries-as-architecture-fitness-gates.md) | Import boundaries as architecture fitness gates | accepted |
+| [0016](0016-plan-aware-outside-collaborator-control.md) | Plan-aware outside collaborator control | accepted |
 
 Conventions: MADR-lite, numbered, immutable once accepted (supersede with a
 new ADR instead of editing history). New significant decisions get the next

@@ -12,11 +12,12 @@ from conftest import ORG_IDS, FakeGh, fail, ok
 from governance_tools.compare import canon
 from governance_tools.control import Control
 from governance_tools.org import audit_orgs, check_org, org_facts
-from governance_tools.report import DRIFT, ERR, MANUAL, OK, Mode
+from governance_tools.report import DRIFT, ERR, MANUAL, OK, ControlResult, Mode
 
 RULESET_ID = "org-ruleset-floor-no-destruction"
 TWO_FACTOR = "org-two-factor-requirement"
 MEMBER_MANUAL = "org-member-privileges-manual"
+INVITATIONS = "org-outside-collaborator-invitations"
 RETENTION = "org-actions-retention"
 
 
@@ -24,9 +25,15 @@ def _by_id(controls: list[Control], control_id: str) -> Control:
     return next(c for c in controls if c.id == control_id)
 
 
-def _status(gh: FakeGh, controls: list[Control], control_id: str, mode: Mode | None = None) -> str:
+def _result(
+    gh: FakeGh, controls: list[Control], control_id: str, mode: Mode | None = None
+) -> ControlResult:
     report = check_org(gh, controls, "o", mode)
-    return next(r.status for r in report.results if r.control_id == control_id)
+    return next(r for r in report.results if r.control_id == control_id)
+
+
+def _status(gh: FakeGh, controls: list[Control], control_id: str, mode: Mode | None = None) -> str:
+    return _result(gh, controls, control_id, mode).status
 
 
 def test_compliant_org_is_all_ok(compliant_org: FakeGh, org_controls: list[Control]) -> None:
@@ -91,16 +98,18 @@ def test_writable_org_control_is_applied(
     assert any("orgs/o/actions/permissions" in c.joined for c in gh.mutations)
 
 
-@pytest.mark.parametrize("control_id", [TWO_FACTOR, MEMBER_MANUAL])
+@pytest.mark.parametrize("control_id", [TWO_FACTOR, MEMBER_MANUAL, INVITATIONS])
 def test_manual_control_reports_manual_and_never_writes(
     compliant_org: FakeGh, org_controls: list[Control], control_id: str
 ) -> None:
     """The API accepts these writes and keeps the old value: never claim APPLIED."""
     control = _by_id(org_controls, control_id)
-    # Both controls under test carry boolean desired values, so inverting each
-    # one is the drifted state whichever way the baseline points.
+    # These controls carry boolean desired values, so inverting each one is the
+    # drifted state whichever way the baseline points.
     live = {key: not value for key, value in control.desired.items()}
     compliant_org.override(control.projection or "", ok(canon(live)))
+    if control.allow_when:
+        compliant_org.override(control.allow_when, ok("false"))
     report = check_org(compliant_org, org_controls, "o", Mode(apply=True))
     result = next(r for r in report.results if r.control_id == control_id)
     assert result.status == MANUAL
@@ -126,6 +135,59 @@ def test_manual_control_is_plain_drift_in_dry_run(
     off = '{"two_factor_requirement_enabled":false}'
     compliant_org.override("{two_factor_requirement_enabled}", ok(off))
     assert _status(compliant_org, org_controls, TWO_FACTOR) == DRIFT
+
+
+def _drift_invitations(gh: FakeGh, controls: list[Control], plan: str) -> Control:
+    control = _by_id(controls, INVITATIONS)
+    gh.override(control.projection or "", ok('{"members_can_invite_outside_collaborators":true}'))
+    allowed = "true" if plan in ("free", "team") else "false"
+    gh.override(control.allow_when or "", ok(allowed))
+    return control
+
+
+def test_team_plan_does_not_allow_visibility_drift(
+    compliant_org: FakeGh, org_controls: list[Control]
+) -> None:
+    live = '{"members_can_change_repo_visibility":true,"members_can_delete_repositories":false}'
+    control = _by_id(org_controls, MEMBER_MANUAL)
+    compliant_org.override(control.projection or "", ok(live))
+    assert _status(compliant_org, org_controls, MEMBER_MANUAL) == DRIFT
+
+
+def test_enterprise_plan_requires_outside_invitation_restriction(
+    compliant_org: FakeGh, org_controls: list[Control]
+) -> None:
+    _drift_invitations(compliant_org, org_controls, "enterprise")
+    assert _status(compliant_org, org_controls, INVITATIONS) == DRIFT
+
+
+def test_team_plan_accepts_outside_invitations_with_visible_reason(
+    compliant_org: FakeGh, org_controls: list[Control]
+) -> None:
+    control = _drift_invitations(compliant_org, org_controls, "team")
+    result = _result(compliant_org, org_controls, INVITATIONS)
+    assert result.status == OK
+    assert result.details == (f"accepted: {control.allow_reason}",)
+    assert "Enterprise Cloud is required" in (control.allow_reason or "")
+
+
+def test_unknown_plan_fails_closed_on_outside_invitations(
+    compliant_org: FakeGh, org_controls: list[Control]
+) -> None:
+    control = _drift_invitations(compliant_org, org_controls, "new-plan")
+    assert _status(compliant_org, org_controls, INVITATIONS) == DRIFT
+    assert '"free"' in (control.allow_when or "")
+    assert '"team"' in (control.allow_when or "")
+
+
+def test_allowance_probe_failure_is_err_and_never_ok(
+    compliant_org: FakeGh, org_controls: list[Control]
+) -> None:
+    control = _drift_invitations(compliant_org, org_controls, "team")
+    compliant_org.override(control.allow_when or "", fail("HTTP 403: Forbidden"))
+    result = _result(compliant_org, org_controls, INVITATIONS)
+    assert result.status == ERR
+    assert result.details == ("allowance probe failed: HTTP 403: Forbidden",)
 
 
 def _weakened(control: Control, **changes: object) -> str:

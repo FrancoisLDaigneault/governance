@@ -26,11 +26,15 @@ def render_matrix(
     name_width = max(len(name) for name in [*rows, label])
     col_width = max(6, *(len(code) for code in codes.values()))
     legend = ", ".join(f"{codes[c.id]}={c.id}" for c in controls)
+    allowances = [
+        f"accepted allowance: {codes[c.id]}={c.allow_reason}" for c in controls if c.allow_reason
+    ]
     header = (
         label.ljust(name_width) + "  " + "  ".join(codes[c.id].ljust(col_width) for c in controls)
     )
     lines = [
         f"legend: {legend}",
+        *allowances,
         "cells: OK = compliant, DRIFT = differs from baseline, - = not applicable,",
         "       ERR = could not be checked, STRICT = live is stricter (skipped)",
         "",

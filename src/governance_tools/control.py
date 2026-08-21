@@ -48,6 +48,8 @@ class Control:
     manual_reason: str | None = None
     na_when: str | None = None
     na_reason: str | None = None
+    allow_when: str | None = None
+    allow_reason: str | None = None
     overrides: dict[str, Override] = field(default_factory=dict)
 
     def applies_to(self, visibility: str) -> bool:
