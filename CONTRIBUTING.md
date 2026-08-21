@@ -33,6 +33,7 @@ uv run ruff format --check .
 uv run ty check --error-on-warning src scripts tests
 uv run mypy
 uv run deptry src
+uv run lint-imports
 uv run pytest -q
 ```
 
@@ -46,6 +47,7 @@ with `uv sync --locked` to prove the lockfile is reproducible.
 - <= 30 statements per function, <= 5 arguments
 - Lines <= 100 characters
 - Complementary static typing gates: ty warnings fail and mypy runs in strict mode
+- Import boundaries with Import Linter contracts plus Ruff TID251
 - <= 200 lines per module, <= 20 per script - checked by `tests/unit/test_standards.py`
 - English only in code, comments and docs. `tests/unit/test_language.py`
   enforces this with an accent heuristic over a defined file set (generated

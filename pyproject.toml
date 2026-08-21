@@ -20,6 +20,7 @@ packages = ["src/governance_tools"]
 dev = [
     "deptry>=0.25.1,<0.26",
     "hypothesis>=6.165.10",
+    "import-linter>=2.13,<3",
     "mypy>=2.3.1",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
@@ -32,7 +33,7 @@ dev = [
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "PL", "C90", "S", "N", "B", "C4", "SIM", "PERF", "RUF"]
+select = ["E", "F", "W", "I", "PL", "C90", "S", "N", "B", "C4", "SIM", "PERF", "RUF", "TID"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8
@@ -43,13 +44,38 @@ max-args = 5
 
 [tool.ruff.lint.per-file-ignores]
 # Tests compare literal counts and contents (PLR2004 is noise there) and
-# lean on assert by design (S101 is pytest's contract).
-"tests/*" = ["PLR2004", "S101"]
+# lean on assert by design (S101 is pytest's contract). Tests are exempt.
+"tests/*" = ["PLR2004", "S101", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"http.client".msg = "Network APIs are confined to the gh adapter."
+"socket".msg = "Network APIs are confined to the gh adapter."
+"subprocess".msg = "Subprocess calls are confined to the gh adapter."
+"urllib.request".msg = "Network APIs are confined to the gh adapter."
+"scripts".msg = "Production modules must not import command wrappers."
+"tests".msg = "Production modules must not import test code."
 
 [tool.deptry]
 # The runtime package is stdlib-only (dependencies = []) except for the gh
 # CLI, which is an external binary, not a Python import; deptry keeps that
 # invariant honest by flagging any non-stdlib import that sneaks into src/.
+
+[tool.importlinter]
+root_package = "governance_tools"
+
+[[tool.importlinter.contracts]]
+name = "Audit and bootstrap orchestrators are independent"
+type = "independence"
+modules = [
+    "governance_tools.audit",
+    "governance_tools.bootstrap",
+]
+
+[[tool.importlinter.contracts]]
+name = "Desired state does not depend on the GitHub adapter"
+type = "forbidden"
+source_modules = ["governance_tools.baseline"]
+forbidden_modules = ["governance_tools.gh"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

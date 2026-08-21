@@ -7,10 +7,11 @@ import pytest
 from conftest import FakeGh, compliant_rules, fail, ok
 
 from governance_tools.baseline import load_controls
-from governance_tools.bootstrap import check_repo, main, repo_facts
+from governance_tools.bootstrap import main
 from governance_tools.check import check_control
 from governance_tools.control import Control, Override
-from governance_tools.gh import GhResult, is_valid_org, is_valid_repo
+from governance_tools.gh import GhResult
+from governance_tools.identifiers import is_valid_org, is_valid_repo
 from governance_tools.report import (
     APPLIED,
     DRIFT,
@@ -26,6 +27,7 @@ from governance_tools.report import (
     render,
     summary_line,
 )
+from governance_tools.repository import check_repo, repo_facts
 
 PUBLIC_ONLY = Control(
     id="pub",

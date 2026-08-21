@@ -36,6 +36,7 @@ jobs:
       - run: uv run ty check --error-on-warning src scripts tests
       - run: uv run mypy
       - run: uv run deptry src
+      - run: uv run lint-imports
       - run: uv run pytest -q
         # machine-readable reports for the artifact upload; addopts still
         # enforces the coverage floor

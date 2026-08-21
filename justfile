@@ -14,6 +14,7 @@ check:
     uv run ty check --error-on-warning src scripts tests
     uv run mypy
     uv run deptry src
+    uv run lint-imports
     uv run pytest -q
 
 # Apply the baseline to one repository (dry-run by default; pass --apply)
