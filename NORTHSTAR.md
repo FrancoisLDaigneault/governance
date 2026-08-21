@@ -12,13 +12,13 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet audit duration | not yet measured (3 repositories + 1 organization) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
+| Fleet audit duration | 26.021 s (3 repositories + 1 organization) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.6 s (233 tests) | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 1.46 s (233 tests), 258 cases passed | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -36,7 +36,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet drift cells | not yet measured for 3 repositories plus 1 organization | trending to 0 | `uv run python scripts/audit.py --all` |
+| Fleet drift cells | 0 (3 repositories + 1 organization) | 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
 | Release integrity (SBOM + provenance attestation) | not yet measured (no release cut) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, Dependency Review, `uv audit --locked`, pip-audit, Dependabot, secret scanning) |
@@ -48,16 +48,17 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Branch coverage | 99.22% | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
+| Branch coverage | 99.28% | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Static-analysis violations | 0 | 0 | Ruff, ty, mypy, deptry, Semgrep and CodeQL gates |
+| Static-analysis violations | 0 | 0 | Ruff, ty, mypy, deptry, Import Linter, Semgrep and CodeQL gates |
+| Required pull-request checks | 8 of 8 green | 8 of 8 green | Live `main-protection` ruleset and PR check rollup |
 | src module / script size | max 196 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 233 (219 unit / 14 integration) | 100% green | `uv run pytest` (pre-commit framework + CI) |
-| Modules performing network IO | 1 of 12 (`gh.py`) | stays 1 | Import review; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |
+| Green tests | 233 (219 unit / 14 integration), 258 cases passed | 100% green | `uv run pytest` (pre-commit framework + CI) |
+| Modules performing network IO | 1 of 14 (`gh.py`) | stays 1 | Import Linter contracts; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |
 
 ## Scalability
 
@@ -68,13 +69,13 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Cost per audited repository | not yet measured for the scoped fleet | stays under 5 s per repo | Fleet audit duration divided by repository count |
+| Cost per audited repository | 8.674 s (26.021 s / 3 repositories) | stays under 5 s per repo | Fleet audit duration divided by repository count |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Governed controls | 25 (14 repository, 11 organization) | grows only with a recorded decision | `src/governance_tools/baseline.json` |
+| Governed controls | 26 (14 repository, 12 organization) | grows only with a recorded decision | `src/governance_tools/baseline.json` |
 | Repositories covered by a fleet audit | 3 (every non-archived `fld-forge` repo) | 100% of `fld-forge` repositories | `scripts/audit.py --all` enumerates them |
 | Unaudited repository able to pass a run | 0 (structurally impossible) | 0, always | Missing controls back-fill as `ERR` and force a non-zero exit |
 
