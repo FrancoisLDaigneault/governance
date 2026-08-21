@@ -151,11 +151,55 @@ def test_python_version_documented() -> None:
     assert badge.group(1) == version, (
         f"README.md badge says {badge.group(1)}+, pyproject requires {requires}"
     )
-    agents = re.search(r"Python (\d+\.\d+)\+", _text("AGENTS.md"))
-    assert agents, "AGENTS.md: 'Python N.NN+' claim not found"
-    assert agents.group(1) == version, (
-        f"AGENTS.md says Python {agents.group(1)}+, pyproject requires {requires}"
+    for doc in ("README.md", "AGENTS.md"):
+        claims = re.findall(r"Python (\d+\.\d+)\+", _text(doc))
+        assert claims, f"{doc}: 'Python N.NN+' claim not found"
+        wrong = [c for c in claims if c != version]
+        assert not wrong, f"{doc} says Python {wrong}+, pyproject requires {requires}"
+    dotfile = (REPO / ".python-version").read_text(encoding="utf-8").strip()
+    assert dotfile == version, f".python-version pins {dotfile}, pyproject requires {requires}"
+
+
+def _ruff_caps() -> tuple[int, int, int, int]:
+    """(McCabe complexity, statements, arguments, line length) from pyproject."""
+    with (REPO / "pyproject.toml").open("rb") as fh:
+        ruff = tomllib.load(fh)["tool"]["ruff"]
+    return (
+        ruff["lint"]["mccabe"]["max-complexity"],
+        ruff["lint"]["pylint"]["max-statements"],
+        ruff["lint"]["pylint"]["max-args"],
+        ruff["line-length"],
     )
+
+
+def test_ruff_caps_documented() -> None:
+    """The complexity, statement, argument and line caps the docs state must
+    track what pyproject actually configures for Ruff."""
+    complexity, statements, args, line = _ruff_caps()
+    agents = re.search(
+        r"McCabe <= (\d+), <= (\d+) statements and <= (\d+) arguments per function,"
+        r" lines <= (\d+)",
+        _flat("AGENTS.md"),
+    )
+    assert agents, "AGENTS.md: ruff caps claim not found"
+    found = tuple(int(g) for g in agents.groups())
+    assert found == (complexity, statements, args, line), (
+        f"AGENTS.md says caps {found}, pyproject configures "
+        f"({complexity}, {statements}, {args}, {line})"
+    )
+    contributing = _flat("CONTRIBUTING.md")
+    checks = (
+        (r"\(McCabe\) <= (\d+)", (complexity,)),
+        (r"<= (\d+) statements per function, <= (\d+) arguments", (statements, args)),
+        (r"Lines <= (\d+) characters", (line,)),
+    )
+    for pattern, expected in checks:
+        claim = re.search(pattern, contributing)
+        assert claim, f"CONTRIBUTING.md: claim matching {pattern!r} not found"
+        found = tuple(int(g) for g in claim.groups())
+        assert found == expected, (
+            f"CONTRIBUTING.md claim {pattern!r} says {found}, pyproject configures {expected}"
+        )
 
 
 def test_controls_count_documented() -> None:
