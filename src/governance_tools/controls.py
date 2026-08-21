@@ -95,21 +95,22 @@ def _read_json(client: GhClient, control: Control, target: str) -> LiveState:
     return LiveState(canonical=canonical, error=error)
 
 
-def probe_na(client: GhClient, control: Control, target: str) -> tuple[bool, str]:
-    """(not applicable, error) for a control that declares a live applicability probe.
-
-    Run before the state read and short-circuits it, so a target the control
-    cannot govern costs one call rather than two. Anything the filter emits
-    other than `true` or `false` is an error, never a guess: a probe that
-    cannot be trusted must not decide between NA and drift.
-    """
-    result = api_get(client, endpoint_for(control.read_endpoint or "", target), control.na_when)
+def probe_condition(
+    client: GhClient, control: Control, target: str, condition: str | None
+) -> tuple[bool, str]:
+    """Evaluate one fail-closed boolean jq condition on the control read."""
+    result = api_get(client, endpoint_for(control.read_endpoint or "", target), condition)
     if not result.ok:
         return False, result.first_error_line()
     answer = result.stdout.strip()
     if answer not in ("true", "false"):
-        return False, f"applicability probe returned {answer[:40]!r}, expected true or false"
+        return False, f"condition probe returned {answer[:40]!r}, expected true or false"
     return answer == "true", ""
+
+
+def probe_na(client: GhClient, control: Control, target: str) -> tuple[bool, str]:
+    """(not applicable, error) for a control's live applicability probe."""
+    return probe_condition(client, control, target, control.na_when)
 
 
 def read_live(client: GhClient, control: Control, target: str) -> LiveState:

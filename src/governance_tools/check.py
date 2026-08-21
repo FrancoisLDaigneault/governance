@@ -11,6 +11,7 @@ from governance_tools.controls import (
     LiveState,
     apply_control,
     fetch_ruleset,
+    probe_condition,
     probe_na,
     read_live,
     ruleset_endpoint,
@@ -99,6 +100,21 @@ def _resolve_drift(
     return _apply_and_recheck(client, control, target, live.ruleset_id, desired)
 
 
+def _classify_live(
+    client: GhClient, control: Control, target: str, live: LiveState, mode: Mode
+) -> ControlResult:
+    """Compare desired state, including a declared fail-closed allowance."""
+    if live.canonical == canon(control.desired):
+        return ControlResult(control.id, OK)
+    if control.allow_when:
+        allowed, error = probe_condition(client, control, target, control.allow_when)
+        if error:
+            return ControlResult(control.id, ERR, (f"allowance probe failed: {error}",))
+        if allowed:
+            return ControlResult(control.id, OK, (f"accepted: {control.allow_reason}",))
+    return _resolve_drift(client, control, target, live, mode)
+
+
 def check_control(
     client: GhClient, control: Control, target: str, visibility: str, mode: Mode
 ) -> ControlResult:
@@ -118,6 +134,4 @@ def check_control(
     live = read_live(client, control, target)
     if live.error:
         return ControlResult(control.id, ERR, (f"read failed: {live.error}",))
-    if live.canonical == canon(control.desired):
-        return ControlResult(control.id, OK)
-    return _resolve_drift(client, control, target, live, mode)
+    return _classify_live(client, control, target, live, mode)

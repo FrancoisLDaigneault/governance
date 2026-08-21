@@ -546,16 +546,28 @@
       "id": "org-member-privileges-manual",
       "scope": "org",
       "kind": "json",
-      "description": "Member privileges the REST API reports but refuses to change: deleting repositories, changing repository visibility and inviting outside collaborators should all be owner-only. Auditing them here turns three lines of a manual checklist into an audited item that reports drift until someone actually clears it.",
+      "description": "Member privileges the REST API reports but refuses to change: deleting repositories and changing repository visibility are always owner-only.",
       "applicability": "all",
       "read_endpoint": "orgs/{org}",
-      "projection": "{members_can_change_repo_visibility, members_can_delete_repositories, members_can_invite_outside_collaborators}",
+      "projection": "{members_can_change_repo_visibility, members_can_delete_repositories}",
       "desired": {
         "members_can_change_repo_visibility": false,
-        "members_can_delete_repositories": false,
-        "members_can_invite_outside_collaborators": false
+        "members_can_delete_repositories": false
       },
       "manual_reason": "web UI only: a PATCH carrying these fields returns 200 and silently keeps the old value. Clear them under Organization settings > Member privileges"
+    },
+    {
+      "id": "org-outside-collaborator-invitations",
+      "scope": "org",
+      "kind": "json",
+      "description": "Repository administrators cannot invite outside collaborators. GitHub exposes this restriction only on Enterprise Cloud, so Team and Free plans accept the unavoidable enabled value with an explicit audited allowance.",
+      "applicability": "all",
+      "read_endpoint": "orgs/{org}",
+      "projection": "{members_can_invite_outside_collaborators}",
+      "desired": {"members_can_invite_outside_collaborators": false},
+      "allow_when": "(.plan.name == \"free\" or .plan.name == \"team\") and .members_can_invite_outside_collaborators == true",
+      "allow_reason": "GitHub Free and Team cannot restrict outside-collaborator invitations to owners; Enterprise Cloud is required: https://docs.github.com/en/organizations/managing-organization-settings/setting-permissions-for-adding-outside-collaborators",
+      "manual_reason": "web UI only on Enterprise Cloud: clear Allow repository administrators to invite outside collaborators under Organization settings > Member privileges"
     },
     {
       "id": "org-two-factor-requirement",

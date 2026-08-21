@@ -49,18 +49,14 @@ def _get_dict(raw: JsonDict, key: str, cid: str) -> JsonDict:
     return value
 
 
-def _parse_na(raw: JsonDict, cid: str, kind: str) -> tuple[str | None, str | None]:
-    """Live applicability probe: a jq filter on the read endpoint, and its reason.
-
-    The probe re-reads `read_endpoint`, which only a `json` control can answer:
-    a ruleset read is a listing, and a 204 endpoint returns no body at all.
-    """
-    when = _get_opt_str(raw, "na_when", cid)
-    reason = _get_opt_str(raw, "na_reason", cid)
+def _parse_probe(raw: JsonDict, cid: str, kind: str, prefix: str) -> tuple[str | None, str | None]:
+    """A jq condition on a JSON read endpoint, paired with its explanation."""
+    when = _get_opt_str(raw, f"{prefix}_when", cid)
+    reason = _get_opt_str(raw, f"{prefix}_reason", cid)
     if (when is None) != (reason is None):
-        raise BaselineError(f"control {cid}: na_when and na_reason must come together")
+        raise BaselineError(f"control {cid}: {prefix}_when and {prefix}_reason must come together")
     if when is not None and kind != "json":
-        raise BaselineError(f"control {cid}: na_when needs kind 'json', got {kind!r}")
+        raise BaselineError(f"control {cid}: {prefix}_when needs kind 'json', got {kind!r}")
     return when, reason
 
 
@@ -140,7 +136,8 @@ def _parse_control(raw: JsonDict) -> Control:
         raise BaselineError(f"control {cid}: unknown applicability {applicability!r}")
     manual_reason = _get_opt_str(raw, "manual_reason", cid)
     apply_method, apply_endpoint = _parse_apply(raw, cid, manual_reason)
-    na_when, na_reason = _parse_na(raw, cid, kind)
+    na_when, na_reason = _parse_probe(raw, cid, kind, "na")
+    allow_when, allow_reason = _parse_probe(raw, cid, kind, "allow")
     scope = _parse_scope(raw, cid)
     control = Control(
         id=cid,
@@ -158,6 +155,8 @@ def _parse_control(raw: JsonDict) -> Control:
         manual_reason=manual_reason,
         na_when=na_when,
         na_reason=na_reason,
+        allow_when=allow_when,
+        allow_reason=allow_reason,
         overrides=_parse_overrides(raw, cid, scope),
     )
     if control.kind == "ruleset" and not control.ruleset_name:

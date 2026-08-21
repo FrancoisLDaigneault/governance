@@ -45,6 +45,12 @@ def test_render_matrix_marks_na_with_a_dash(controls: list[Control]) -> None:
     assert any("-" in line for line in render_matrix(rows, controls)[5:])
 
 
+def test_render_matrix_shows_plan_allowance_reason(org_controls: list[Control]) -> None:
+    control = next(c for c in org_controls if c.id == "org-outside-collaborator-invitations")
+    lines = render_matrix({"o": {control.id: OK}}, [control], label="org")
+    assert any(f"accepted allowance: C1={control.allow_reason}" == line for line in lines)
+
+
 def test_resolve_repos_returns_explicit_names() -> None:
     assert resolve_repos(FakeGh(), ["a/b", "c/d"]) == ["a/b", "c/d"]
 

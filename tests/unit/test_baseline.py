@@ -9,7 +9,7 @@ import governance_tools
 from governance_tools.baseline import BASELINE_PATH, BaselineError, load_controls, split_by_scope
 from governance_tools.control import Control
 
-EXPECTED_CONTROLS = 25
+EXPECTED_CONTROLS = 26
 
 
 def write_baseline(tmp_path: Path, controls: object) -> Path:
@@ -135,6 +135,8 @@ def test_optional_fields_default_to_none(tmp_path: Path) -> None:
     assert control.apply_preserve is None
     assert control.na_when is None
     assert control.na_reason is None
+    assert control.allow_when is None
+    assert control.allow_reason is None
 
 
 def test_baseline_ships_inside_the_installed_package() -> None:
@@ -245,6 +247,20 @@ def test_na_probe_on_a_non_json_control_is_rejected(tmp_path: Path) -> None:
     raw = valid_control(kind="status204", na_when=".x", na_reason="why")
     with pytest.raises(BaselineError, match="na_when needs kind 'json'"):
         load_controls(write_baseline(tmp_path, [raw]))
+
+
+def test_allowance_probe_is_parsed(tmp_path: Path) -> None:
+    raw = valid_control(allow_when='.plan.name == "team"', allow_reason="plan limit")
+    control = load_controls(write_baseline(tmp_path, [raw]))[0]
+    assert control.allow_when == '.plan.name == "team"'
+    assert control.allow_reason == "plan limit"
+
+
+@pytest.mark.parametrize("field", ["allow_when", "allow_reason"])
+def test_half_declared_allowance_probe_is_rejected(tmp_path: Path, field: str) -> None:
+    path = write_baseline(tmp_path, [valid_control(**{field: "x"})])
+    with pytest.raises(BaselineError, match="allow_when and allow_reason must come together"):
+        load_controls(path)
 
 
 def test_only_codeql_probes_applicability() -> None:
@@ -406,5 +422,6 @@ def test_shipped_manual_controls_are_the_documented_three() -> None:
     assert manual == [
         "org-security-configuration",
         "org-member-privileges-manual",
+        "org-outside-collaborator-invitations",
         "org-two-factor-requirement",
     ]
