@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/fld-forge/governance/compare/v0.8.1...v0.8.2) (2026-08-21)
+
+
+### Documentation
+
+* adopt the guarded REST squash runbook for release PRs ([#41](https://github.com/fld-forge/governance/issues/41)) ([9ba23ec](https://github.com/fld-forge/governance/commit/9ba23ec02232fe9551a7f71b81de1b8d9424409b)), closes [#40](https://github.com/fld-forge/governance/issues/40)
+
 ## [0.8.1](https://github.com/fld-forge/governance/compare/v0.8.0...v0.8.1) (2026-08-21)
 
 
