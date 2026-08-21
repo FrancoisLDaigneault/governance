@@ -53,6 +53,22 @@ def test_northstar_test_counts() -> None:
     )
 
 
+def test_northstar_module_count() -> None:
+    """The network-IO row states the package's module total; the total must
+    track the modules on disk (the '1' itself is enforced by Import Linter)."""
+    modules = [
+        p
+        for p in sorted((REPO / "src" / "governance_tools").glob("*.py"))
+        if p.name != "__init__.py"
+    ]
+    row = re.search(r"Modules performing network IO \| \d+ of (\d+)", _flat("NORTHSTAR.md"))
+    assert row, "NORTHSTAR.md: 'Modules performing network IO | N of M' row not found"
+    assert int(row.group(1)) == len(modules), (
+        f"NORTHSTAR.md network-IO row says 'of {row.group(1)}' modules, "
+        f"src/governance_tools has {len(modules)}"
+    )
+
+
 def _gate_commands() -> list[str]:
     """The quality commands of the justfile `check` recipe (source of truth)."""
     lines = _text("justfile").splitlines()
