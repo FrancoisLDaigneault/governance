@@ -180,6 +180,16 @@ def test_unknown_plan_fails_closed_on_outside_invitations(
     assert '"team"' in (control.allow_when or "")
 
 
+def test_allowance_probe_failure_is_err_and_never_ok(
+    compliant_org: FakeGh, org_controls: list[Control]
+) -> None:
+    control = _drift_invitations(compliant_org, org_controls, "team")
+    compliant_org.override(control.allow_when or "", fail("HTTP 403: Forbidden"))
+    result = _result(compliant_org, org_controls, INVITATIONS)
+    assert result.status == ERR
+    assert result.details == ("allowance probe failed: HTTP 403: Forbidden",)
+
+
 def _weakened(control: Control, **changes: object) -> str:
     return canon({**control.desired, **changes})
 

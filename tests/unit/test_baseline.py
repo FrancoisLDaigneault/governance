@@ -416,7 +416,7 @@ def test_shipped_mature_discipline_pins_squash_only() -> None:
     assert "allowed_merge_methods" in control.projection
 
 
-def test_shipped_manual_controls_are_the_documented_three() -> None:
+def test_shipped_manual_controls_are_the_documented_set() -> None:
     """Manual means the API cannot correct it; the set is deliberate, not incidental."""
     manual = [c.id for c in load_controls() if c.is_manual]
     assert manual == [
