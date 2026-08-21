@@ -26,7 +26,7 @@ API would silently discard.
 
 The tool holds credentials that change settings on every repository it is
 pointed at. A bug here does not fail a build, it silently weakens a fleet.
-Four invariants exist to bound that, and each is a named test:
+These invariants exist to bound that, and each is a named test:
 
 - **Dry-run is the default.** Only `--apply` may mutate; tests assert that no
   mutating call is issued otherwise.

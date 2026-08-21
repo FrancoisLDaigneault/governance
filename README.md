@@ -160,7 +160,7 @@ drift.
 
 The baseline describes the state a repository should be in, in both
 directions: a setting that is *stricter* than the baseline is still drift,
-and applying the baseline would lower it. Three things bound that blast
+and applying the baseline would lower it. These properties bound that blast
 radius:
 
 - **Rulesets are guarded.** Before overwriting an existing ruleset,
