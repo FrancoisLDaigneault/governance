@@ -113,9 +113,16 @@ def test_release_workflow_documented() -> None:
     assert "${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}" in workflow, (
         "release-please.yml: the token fallback changed; revisit the AGENTS.md quirk"
     )
-    assert "RELEASE_PLEASE_TOKEN" in test_docs._text("AGENTS.md"), (
+    agents = test_docs._text("AGENTS.md")
+    assert "RELEASE_PLEASE_TOKEN" in agents, (
         "AGENTS.md: the release-PR checks quirk must name RELEASE_PLEASE_TOKEN"
     )
+    for anchor in ("merge_method=squash", "verification.verified"):
+        assert anchor in agents, (
+            f"AGENTS.md: the guarded REST squash runbook for release PRs must "
+            f"quote {anchor!r} (required_signatures blocks GraphQL merges of "
+            f"unsigned release-please heads)"
+        )
     assets = set(re.findall(r"(sbom\.\w+\.json|SHA256SUMS)", workflow))
     assert assets, "release-please.yml: no generated release asset names found"
     security = test_docs._text("SECURITY.md")
