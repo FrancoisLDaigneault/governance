@@ -21,7 +21,7 @@ that organization are out of scope.
 | `src/governance_tools/baseline.json` | Machine-readable desired state: 26 controls (14 repository-scope, 12 organization-scope), each with its read endpoint, a jq projection, the desired value and the corrective API call; a control may carry per-repository `overrides` when one target's desired state legitimately differs (`.github` requires its own `CodeQL` and `validation` contexts instead of the complete Python-profile context set). Every desired value was frozen from a live, verified reference state rather than written from memory. It ships inside the package so an installed wheel can find it. |
 | `scripts/bootstrap.py` | Applies the baseline to one repository, or to one organization with `--org`. Dry-run by default; `--apply` executes. Idempotent: re-running on a compliant target changes nothing and exits 0. |
 | `scripts/audit.py` | Compliance matrix for `fld-forge` (`--all` = every non-archived repository plus the organization section). Exit 1 on any drift, error or skip. |
-| `src/governance_tools/` | The package: `control` (the checked control value and its per-target overrides), `identifiers` (target validation), `baseline` (load and validate), `gh` (the only network IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `check` (per-control classification), `repository` (shared repository checks), `bootstrap`, `org` and `audit` (orchestration), `matrix` and `report` (rendering), `scheduled_audit` (the scheduled-task wrapper; writes only its own log files). |
+| `src/governance_tools/` | The package: `control` (the checked control value and its per-target overrides), `identifiers` (target validation), `baseline` (load and validate), `gh` (the only network IO), `compare` (pure comparison and the stricter guard), `controls` (per-control read/apply), `check` (per-control classification), `repository` (shared repository checks), `bootstrap`, `org` and `audit` (orchestration), `matrix` and `report` (rendering), `readme` (the generated README controls block), `scheduled_audit` (the scheduled-task wrapper; writes only its own log files). |
 
 ## Setup
 
@@ -32,8 +32,8 @@ uv run pre-commit install --install-hooks   # installs the framework hooks (.pre
 
 Or `just setup`. Requirements: `gh` authenticated with the `repo` scope,
 [uv](https://docs.astral.sh/uv/) and Python 3.12+ (uv downloads it
-automatically via `.python-version`). A fleet audit costs roughly 3 seconds
-per repository (a dozen API calls each).
+automatically via `.python-version`). A fleet audit costs roughly a dozen
+API calls per repository.
 
 ## Usage
 
@@ -65,8 +65,9 @@ repository endpoint. `--all` renders the `fld-forge` repository matrix first,
 then the `fld-forge` organization section; explicit `OWNER/REPO` arguments audit
 exactly what was asked for.
 
-Three organization controls are **manual**: the security configuration, the
-member privileges GitHub exposes read-only, and the two-factor requirement. The
+Four organization controls are **manual** (`org-security-configuration`,
+`org-member-privileges-manual`, `org-outside-collaborator-invitations`,
+`org-two-factor-requirement`). The
 REST API either accepts a write and silently keeps the old value, or needs a
 multi-step operation this baseline deliberately does not automate. They are
 audited like any other control and report `MANUAL` under `--apply`, with the
@@ -109,10 +110,41 @@ their own cadence.
 
 ## Controls
 
-`ruleset-main-protection`, `ruleset-release-tags`, `immutable-releases`,
-`codeql-default-setup`, `dependabot-alerts`, `dependabot-security-updates`,
-`secret-scanning`, `secret-scanning-push-protection`,
-`private-vulnerability-reporting`, `actions-workflow-permissions`.
+<!-- controls:begin - generated from src/governance_tools/baseline.json; regenerate with: uv run python scripts/render_readme.py --apply -->
+
+### Repository controls (14)
+
+- `ruleset-main-protection` - Default branch ruleset: PR required (0 approvals), force-push and deletion blocked, signed commits required, no bypass actors, and the CI quality gates (CodeQL, dependency-review, pip-audit, quality, secrets-scan, semgrep, uv-audit, zizmor) required to pass before merge with the branch up to date.
+- `ruleset-release-tags` - Tag ruleset for refs/tags/v*: deletion, update and force-update blocked; creation stays allowed for release automation.
+- `immutable-releases` - Published releases and their assets can no longer be modified or deleted.
+- `codeql-default-setup` - CodeQL code scanning, GitHub-managed default setup, default query suite, weekly schedule.
+- `dependabot-alerts` - Dependabot vulnerability alerts enabled.
+- `dependabot-security-updates` - Dependabot security updates (automated security fixes) enabled.
+- `secret-scanning` - GitHub secret scanning enabled.
+- `secret-scanning-push-protection` - Secret scanning push protection enabled.
+- `private-vulnerability-reporting` - Private vulnerability reporting enabled (the SECURITY.md reporting path).
+- `actions-workflow-permissions` - Default GITHUB_TOKEN permissions read-only.
+- `merge-methods-squash-only` - Squash is the only merge method.
+- `delete-branch-on-merge` - Merged pull-request branches are deleted automatically, so a stale branch cannot be revived and re-merged later.
+- `unused-collaboration-surfaces` - Wiki and projects disabled.
+- `web-commit-signoff` - Commits authored through the GitHub web editor must carry a sign-off.
+
+### Organization controls (12)
+
+- `org-ruleset-floor-no-destruction` - Organization floor for every repository, present and future: force-push and deletion blocked on the default branch.
+- `org-ruleset-floor-release-tags` - Organization floor for every repository: version tags cannot be deleted, moved or force-updated.
+- `org-ruleset-mature-discipline` - Strict tier: repositories carrying the custom property tier=mature require a pull request (0 approvals, matching the single-maintainer model), signed commits, and squash as the only merge method.
+- `org-custom-property-tier` - The tier custom property that the strict ruleset selects on.
+- `org-security-configuration` - The fld-forge-baseline security configuration is the organization default for every new repository and is enforced, so a repository administrator cannot disable the features it controls. *(manual)*
+- `org-actions-policy` - Actions must reference a full commit SHA, organization-wide.
+- `org-actions-workflow-permissions` - Default GITHUB_TOKEN permissions read-only across the organization.
+- `org-actions-retention` - Workflow artifacts and logs are kept 30 days, matching the retention-days the fleet's CI already declares on its uploads so one number governs both.
+- `org-member-privileges` - Member privileges the REST API can both read and write: members cannot create repositories or teams, base permission on organization repositories is read, private forks are off, issue deletion is off, and web-editor commits carry a sign-off.
+- `org-member-privileges-manual` - Member privileges the REST API reports but refuses to change: deleting repositories and changing repository visibility are always owner-only. *(manual)*
+- `org-outside-collaborator-invitations` - Repository administrators cannot invite outside collaborators. *(manual)*
+- `org-two-factor-requirement` - Two-factor authentication required for every member. *(manual)*
+
+<!-- controls:end -->
 
 Public-only controls (rulesets, CodeQL, secret scanning, push protection,
 private vulnerability reporting) are skipped with `NA` on private repos:
@@ -128,7 +160,7 @@ drift.
 
 The baseline describes the state a repository should be in, in both
 directions: a setting that is *stricter* than the baseline is still drift,
-and applying the baseline would lower it. Three things bound that blast
+and applying the baseline would lower it. These properties bound that blast
 radius:
 
 - **Rulesets are guarded.** Before overwriting an existing ruleset,
@@ -172,17 +204,23 @@ matrix - never dropped from the report. A fleet audit therefore cannot exit
 
 ## Scheduled audit
 
-The audit runs weekly from a **local scheduled task** (`governance-fleet-audit`,
-Wednesdays at 09:00 local), which calls `scripts/weekly_audit.py`. It writes the
-whole matrix to a timestamped log under `governance-audit/` and keeps the newest
-twelve. Drift is a finding, not a failure: the wrapper succeeds whether the audit
-reports clean or drifting, and fails only when the audit itself could not run.
+The audit runs weekly from two mechanisms. A **local scheduled task**
+(`governance-fleet-audit`, Wednesdays at 09:00 local) calls
+`scripts/weekly_audit.py`, writes the whole matrix to a timestamped log under
+`governance-audit/` and keeps the newest twelve. Drift is a finding, not a
+failure: the wrapper succeeds whether the audit reports clean or drifting, and
+fails only when the audit itself could not run.
 
-`.github/workflows/fleet-audit.yml` is kept but **dormant**. It requires a
-repository secret that does not exist and fails loudly without it, by design - an
-audit that silently reported an empty fleet would read as a clean one. A
-fine-grained token scoped read-only to `fld-forge` can enumerate the fixed fleet.
-The re-create command, exit-code policy and credential guidance are in
+The **hosted workflow** (`.github/workflows/fleet-audit.yml`) runs the same
+audit from GitHub-hosted runners on its own weekly schedule and on demand,
+publishes the matrix in the run summary, and keeps a single drift tracking
+issue in step with organization drift. It authenticates with the
+`GOVERNANCE_AUDIT_TOKEN` repository secret (a fine-grained token scoped
+read-only to `fld-forge`) and fails loudly when that secret is missing or the
+matrix carries no fleet rows, by design - an audit that silently reported an
+empty fleet would read as a clean one. Current run state:
+`gh run list --workflow=fleet-audit.yml`. The re-create command, exit-code
+policy and credential guidance are in
 [`docs/scheduled-audit.md`](docs/scheduled-audit.md).
 
 ## Org-migration note

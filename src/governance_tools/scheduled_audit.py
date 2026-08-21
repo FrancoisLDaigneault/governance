@@ -9,7 +9,7 @@ Exit-code policy. The audit exits 1 when it finds drift; that is a finding,
 not a malfunction. This module therefore reports success for 0 (clean) and 1
 (drift) alike, and fails only for 2 and above (usage error, or the audit
 refusing to report a partial fleet). Mapping drift to a failing task would
-make it look permanently broken - the organization carries two controls that
+make it look permanently broken - the organization carries controls that
 only a human can clear - and a genuinely broken audit would then be
 indistinguishable from an ordinary drifting one. What the run FOUND is in the
 log; whether it RAN is the task's Last Result.

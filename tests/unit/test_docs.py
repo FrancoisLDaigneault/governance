@@ -14,6 +14,7 @@ import tomllib
 import test_standards
 
 from governance_tools.baseline import load_controls
+from governance_tools.readme import render_block, updated_text
 
 REPO = test_standards.REPO
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
@@ -49,6 +50,22 @@ def test_northstar_test_counts() -> None:
     assert duration, "NORTHSTAR.md: suite-duration row '(N tests)' not found"
     assert int(duration.group(1)) == total, (
         f"NORTHSTAR.md suite-duration row says {duration.group(1)} tests, actual is {total}"
+    )
+
+
+def test_northstar_module_count() -> None:
+    """The network-IO row states the package's module total; the total must
+    track the modules on disk (the '1' itself is enforced by Import Linter)."""
+    modules = [
+        p
+        for p in sorted((REPO / "src" / "governance_tools").glob("*.py"))
+        if p.name != "__init__.py"
+    ]
+    row = re.search(r"Modules performing network IO \| \d+ of (\d+)", _flat("NORTHSTAR.md"))
+    assert row, "NORTHSTAR.md: 'Modules performing network IO | N of M' row not found"
+    assert int(row.group(1)) == len(modules), (
+        f"NORTHSTAR.md network-IO row says 'of {row.group(1)}' modules, "
+        f"src/governance_tools has {len(modules)}"
     )
 
 
@@ -134,18 +151,158 @@ def test_python_version_documented() -> None:
     assert badge.group(1) == version, (
         f"README.md badge says {badge.group(1)}+, pyproject requires {requires}"
     )
-    agents = re.search(r"Python (\d+\.\d+)\+", _text("AGENTS.md"))
-    assert agents, "AGENTS.md: 'Python N.NN+' claim not found"
-    assert agents.group(1) == version, (
-        f"AGENTS.md says Python {agents.group(1)}+, pyproject requires {requires}"
+    for doc in ("README.md", "AGENTS.md"):
+        claims = re.findall(r"Python (\d+\.\d+)\+", _text(doc))
+        assert claims, f"{doc}: 'Python N.NN+' claim not found"
+        wrong = [c for c in claims if c != version]
+        assert not wrong, f"{doc} says Python {wrong}+, pyproject requires {requires}"
+    dotfile = (REPO / ".python-version").read_text(encoding="utf-8").strip()
+    assert dotfile == version, f".python-version pins {dotfile}, pyproject requires {requires}"
+
+
+def _ruff_caps() -> tuple[int, int, int, int]:
+    """(McCabe complexity, statements, arguments, line length) from pyproject."""
+    with (REPO / "pyproject.toml").open("rb") as fh:
+        ruff = tomllib.load(fh)["tool"]["ruff"]
+    return (
+        ruff["lint"]["mccabe"]["max-complexity"],
+        ruff["lint"]["pylint"]["max-statements"],
+        ruff["lint"]["pylint"]["max-args"],
+        ruff["line-length"],
     )
 
 
+def test_ruff_caps_documented() -> None:
+    """The complexity, statement, argument and line caps the docs state must
+    track what pyproject actually configures for Ruff."""
+    complexity, statements, args, line = _ruff_caps()
+    agents = re.search(
+        r"McCabe <= (\d+), <= (\d+) statements and <= (\d+) arguments per function,"
+        r" lines <= (\d+)",
+        _flat("AGENTS.md"),
+    )
+    assert agents, "AGENTS.md: ruff caps claim not found"
+    found = tuple(int(g) for g in agents.groups())
+    assert found == (complexity, statements, args, line), (
+        f"AGENTS.md says caps {found}, pyproject configures "
+        f"({complexity}, {statements}, {args}, {line})"
+    )
+    contributing = _flat("CONTRIBUTING.md")
+    checks = (
+        (r"\(McCabe\) <= (\d+)", (complexity,)),
+        (r"<= (\d+) statements per function, <= (\d+) arguments", (statements, args)),
+        (r"Lines <= (\d+) characters", (line,)),
+    )
+    for pattern, expected in checks:
+        claim = re.search(pattern, contributing)
+        assert claim, f"CONTRIBUTING.md: claim matching {pattern!r} not found"
+        found = tuple(int(g) for g in claim.groups())
+        assert found == expected, (
+            f"CONTRIBUTING.md claim {pattern!r} says {found}, pyproject configures {expected}"
+        )
+
+
 def test_controls_count_documented() -> None:
-    """The README states how many controls the baseline governs."""
-    actual = len(load_controls())
-    match = re.search(r"(\d+) controls", _flat("README.md"))
-    assert match, "README.md: 'N controls' claim not found"
-    assert int(match.group(1)) == actual, (
-        f"README.md says {match.group(1)} controls, baseline.json defines {actual}"
+    """The README and NORTHSTAR state how many controls the baseline governs,
+    split by scope; the split must track baseline.json, not memory."""
+    controls = load_controls()
+    actual = (
+        len(controls),
+        sum(1 for c in controls if c.scope == "repo"),
+        sum(1 for c in controls if c.scope == "org"),
+    )
+    match = re.search(
+        r"(\d+) controls \((\d+) repository-scope, (\d+) organization-scope\)",
+        _flat("README.md"),
+    )
+    assert match, "README.md: 'N controls (R repository-scope, O organization-scope)' not found"
+    found = tuple(int(g) for g in match.groups())
+    assert found == actual, f"README.md says controls {found}, baseline.json defines {actual}"
+    row = re.search(
+        r"Governed controls \| (\d+) \((\d+) repository, (\d+) organization\)",
+        _flat("NORTHSTAR.md"),
+    )
+    assert row, "NORTHSTAR.md: 'Governed controls | N (R repository, O organization)' row not found"
+    found = tuple(int(g) for g in row.groups())
+    assert found == actual, (
+        f"NORTHSTAR.md governed-controls row says {found}, baseline.json defines {actual}"
+    )
+
+
+def test_northstar_required_checks_count() -> None:
+    """The required-PR-checks row states how many contexts the main-protection
+    ruleset requires; the count must track baseline.json, not memory."""
+    control = next(c for c in load_controls() if c.id == "ruleset-main-protection")
+    checks = control.desired["checks"]
+    assert isinstance(checks, dict), "ruleset-main-protection: desired.checks is not a dict"
+    contexts = checks["contexts"]
+    assert isinstance(contexts, list), "ruleset-main-protection: checks.contexts is not a list"
+    expected = len(contexts)
+    row = re.search(
+        r"Required pull-request checks \| (\d+) of (\d+) green \| (\d+) of (\d+) green",
+        _flat("NORTHSTAR.md"),
+    )
+    assert row, "NORTHSTAR.md: 'Required pull-request checks | N of M green' row not found"
+    wrong = [g for g in row.groups() if int(g) != expected]
+    assert not wrong, (
+        f"NORTHSTAR.md required-checks row says {row.groups()}, "
+        f"baseline.json requires {expected} contexts"
+    )
+
+
+def test_controls_section_generated() -> None:
+    """The README controls list is generated from baseline.json; a stale,
+    hand-edited or marker-less block fails here until the renderer is rerun."""
+    text = _text("README.md")
+    hint = "run 'uv run python scripts/render_readme.py --apply'"
+    try:
+        wanted = updated_text(text, render_block(load_controls()))
+    except ValueError as exc:
+        raise AssertionError(f"{exc} - {hint}") from exc
+    assert wanted == text, f"README.md controls block is stale - {hint}"
+
+
+_NUMBER_WORDS = {
+    word: value
+    for value, word in enumerate(
+        ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine"),
+        start=1,
+    )
+}
+
+
+def test_manual_controls_documented() -> None:
+    """The README counts and lists the manual controls; both must track
+    which baseline controls actually carry a `manual_reason`."""
+    manual = sorted(c.id for c in load_controls() if c.is_manual)
+    scopes = {c.scope for c in load_controls() if c.is_manual}
+    assert scopes == {"org"}, (
+        f"manual controls now span scopes {scopes}; the README sentence "
+        "'organization controls are manual' needs rewording"
+    )
+    claim = re.search(r"(\w+) organization controls are \*\*manual\*\*", _flat("README.md"))
+    assert claim, "README.md: 'N organization controls are **manual**' claim not found"
+    assert _NUMBER_WORDS.get(claim.group(1).lower()) == len(manual), (
+        f"README.md says {claim.group(1)} manual controls, baseline.json defines {len(manual)}"
+    )
+    listed = re.search(r"are \*\*manual\*\* \(([^)]*)\)", _flat("README.md"))
+    assert listed, "README.md: manual controls are not listed by id after the claim"
+    ids = sorted(re.findall(r"`([^`]+)`", listed.group(1)))
+    assert ids == manual, f"README.md lists manual controls {ids}, baseline.json defines {manual}"
+
+
+def test_scheduled_audit_manual_count() -> None:
+    """The scheduled-audit rationale counts the controls only a human can
+    clear; that is exactly the baseline's manual set."""
+    actual = sum(1 for c in load_controls() if c.is_manual)
+    claim = re.search(
+        r"carries (\w+) controls that only a human can clear",
+        _flat("docs/scheduled-audit.md"),
+    )
+    assert claim, (
+        "docs/scheduled-audit.md: 'carries N controls that only a human can clear' not found"
+    )
+    assert _NUMBER_WORDS.get(claim.group(1).lower()) == actual, (
+        f"docs/scheduled-audit.md says {claim.group(1)} human-only controls, "
+        f"baseline.json defines {actual}"
     )

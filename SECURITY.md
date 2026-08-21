@@ -17,11 +17,14 @@ You will receive an initial response within 7 business days.
 ## Threat model of this tool
 
 This tool holds credentials that can change repository settings across a whole
-fleet, so its blast radius is wider than its size suggests. Three properties
+fleet, so its blast radius is wider than its size suggests. These properties
 bound it, each enforced by tests rather than by convention:
 
 - **Dry-run is the default.** `--apply` is required for any mutation; the test
   suite asserts that no mutating call is issued without it.
+- **A stricter live setting is never lowered.** A ruleset stricter than the
+  baseline is reported and skipped, never normalized; overwriting it takes an
+  explicit `--force-normalize`.
 - **Repository names are shape-checked** before they reach an API path
   template, so a crafted name cannot redirect a write to another endpoint.
 - **A failed read is never treated as drift** and never falls through to a

@@ -1,11 +1,12 @@
 # The scheduled fleet audit
 
-The audit runs weekly from a **local scheduled task**. The GitHub-hosted
-workflow is kept, but dormant: it needs a credential that cannot be created
-without a browser. The required scope is recorded below so the choice can be
-revisited without being re-derived.
+The audit runs weekly from two mechanisms that read the same baseline: a
+**local scheduled task** on the maintainer's machine, and the **hosted
+workflow** `.github/workflows/fleet-audit.yml`. The local task writes a log;
+the hosted workflow publishes the matrix in its run summary and keeps a single
+drift tracking issue in step with organization drift.
 
-## The mechanism in use: a local scheduled task
+## The local scheduled task
 
 | | |
 | --- | --- |
@@ -54,7 +55,7 @@ The audit exits 1 when it finds drift. The wrapper reports success for both 0
 audit refusing to report a partial fleet.
 
 Mapping drift to a failing task would be worse than useless here: the
-organization carries two controls that only a human can clear, so the task would
+organization carries four controls that only a human can clear, so the task would
 sit permanently red, and a genuinely broken audit would be indistinguishable
 from an ordinary drifting one. `Last Result` answers whether the audit **ran**;
 the log answers what it **found**.
@@ -68,17 +69,20 @@ the log answers what it **found**.
 - The result stays local. There is no issue, no notification: reading the log is
   the interface.
 
-## The dormant hosted workflow
+## The hosted workflow
 
-`.github/workflows/fleet-audit.yml` is still in the repository, scheduled for
-Wednesdays at 07:00 UTC and available through **Actions -> Fleet audit -> Run
-workflow**. It is **not active**: it requires a repository secret named
-`GOVERNANCE_AUDIT_TOKEN`, that secret does not exist, and the workflow fails
-with a named error when it is missing. That failure is the design - an audit
-that silently reports an empty fleet would read as a clean one.
+`.github/workflows/fleet-audit.yml` runs Wednesdays at 07:00 UTC and on demand
+through **Actions -> Fleet audit -> Run workflow**. It authenticates with the
+repository secret `GOVERNANCE_AUDIT_TOKEN` and fails with a named error when
+that secret is missing. That failure is the design - an audit that silently
+reports an empty fleet would read as a clean one.
 
-It stays for the day cloud visibility is wanted: a run summary containing the
-matrix, and a single tracking issue kept in step with organization drift.
+Every run publishes the matrix to the run summary. Organization drift opens a
+single tracking issue, rewritten by every run and closed automatically once the
+organization is clean again; the run itself then fails so the Actions tab shows
+red. A red hosted run therefore means either real drift to correct with
+`bootstrap.py --apply`, or a credential problem named in the log - check with
+`gh run list --workflow=fleet-audit.yml`.
 
 ### Credential scope
 

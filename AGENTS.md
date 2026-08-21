@@ -9,7 +9,8 @@ Layout: `src/governance_tools/` (`baseline` loads and validates
 `compare` is pure comparison plus the stricter-than-baseline guard, `controls`
 does per-control read/apply, `check` classifies one control, `repository` shares
 repository checks, `bootstrap`, `org` and `audit` orchestrate, `matrix` and
-`report` render, `scheduled_audit` wraps the audit
+`report` render, `readme` renders the generated README controls
+block, `scheduled_audit` wraps the audit
 for the scheduled task and writes only its own log files), `scripts/` (thin
 wrappers), `tests/` (unit / integration); local gates run through the
 pre-commit framework (`.pre-commit-config.yaml`).
@@ -25,7 +26,7 @@ API would silently discard.
 
 The tool holds credentials that change settings on every repository it is
 pointed at. A bug here does not fail a build, it silently weakens a fleet.
-Four invariants exist to bound that, and each is a named test:
+These invariants exist to bound that, and each is a named test:
 
 - **Dry-run is the default.** Only `--apply` may mutate; tests assert that no
   mutating call is issued otherwise.
@@ -93,8 +94,10 @@ carries its assets.
 - `uv run` may rewrite `uv.lock` when `pyproject.toml` is ahead of it
   (post-release window). Restore with `git checkout -- uv.lock` unless the
   change is intended.
-- release-please PRs show no CI checks (GitHub anti-recursion with
-  `GITHUB_TOKEN`). Inspect the PR diff and rely on post-merge CI on `main`.
+- release-please PRs carry CI checks only while the `RELEASE_PLEASE_TOKEN`
+  secret exists: the workflow falls back to `github.token`, whose pushes
+  trigger no CI (GitHub anti-recursion). If a release PR shows no checks,
+  inspect the diff and rely on post-merge CI on `main`.
 - CRLF warnings on Windows are checkout-side only; committed blobs are LF
   (`.gitattributes` enforces `eol=lf`).
 - Repo-local SSH commit signing is configured (`commit.gpgsign true`);

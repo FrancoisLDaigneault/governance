@@ -147,6 +147,7 @@ def _parse_control(raw: JsonDict) -> Control:
         apply_method=apply_method,
         apply_endpoint=apply_endpoint,
         scope=scope,
+        description=_get_str(raw, "description", cid) if "description" in raw else "",
         read_endpoint=_get_opt_str(raw, "read_endpoint", cid),
         projection=_get_opt_str(raw, "projection", cid),
         ruleset_name=_get_opt_str(raw, "ruleset_name", cid),
