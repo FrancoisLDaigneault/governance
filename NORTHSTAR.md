@@ -6,19 +6,24 @@ axis, plus supporting indicators. Every value is measured; an unmeasured value
 is written as unmeasured, never invented. Updated whenever a measurement
 changes category.
 
+A `Current` value that a gate verifies on every run is written plain: it cannot
+drift without turning something red. A value read by hand carries the date it
+was read, because nothing keeps it current afterwards - the `Measurement`
+column is how to refresh it, and a dated reading stays true even once stale.
+
 ## Speed
 
 North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet audit duration | 26.021 s (3 repositories + 1 organization) | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
+| Fleet audit duration | 26.937 s (3 repositories + 1 organization), read 2026-08-22 | < 60 s for the current fleet | `uv run python scripts/audit.py --all`, wall clock |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.87 s (262 tests), 287 cases passed | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 2.41 s (262 tests), 287 cases passed, read 2026-08-22 | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -36,9 +41,9 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Fleet drift cells | 0 (3 repositories + 1 organization) | 0 | `uv run python scripts/audit.py --all` |
+| Fleet drift cells | 0 (3 repositories + 1 organization), read 2026-08-22 | 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
-| Release integrity (SBOM + provenance attestation) | v0.8.3 verified: 6 assets, attestation and checksums pass (verified 2026-08-22) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
+| Release integrity (SBOM + provenance attestation) | v0.8.4: 6 assets, attestation and checksums pass, read 2026-08-22 | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, Dependency Review, `uv audit --locked`, pip-audit, Dependabot, secret scanning) |
 | Semgrep CE findings | 0 in the adoption preflight | 0 | `uvx semgrep==1.173.0 scan --config p/python --metrics=off --error src scripts` (CI gate) |
 
@@ -48,7 +53,7 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Branch coverage | 99.32% | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
+| Branch coverage | 99.32%, read 2026-08-22 | >= 90% (enforced floor) | every full `uv run pytest` run (pre-commit framework + CI + `just check`) |
 
 Supporting indicators:
 
@@ -56,7 +61,7 @@ Supporting indicators:
 | --- | --- | --- | --- |
 | Static-analysis violations | 0 | 0 | Ruff, ty, mypy, deptry, Import Linter, Semgrep and CodeQL gates |
 | Required pull-request checks | 8 of 8 green | 8 of 8 green | Live `main-protection` ruleset and PR check rollup |
-| src module / script size | max 197 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
+| src module / script size | max 197 / 8 lines, read 2026-08-22 | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
 | Green tests | 262 (248 unit / 14 integration), 287 cases passed | 100% green | `uv run pytest` (pre-commit framework + CI) |
 | Modules performing network IO | 1 of 15 (`gh.py`) | stays 1 | Import Linter contracts; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |
 
@@ -69,14 +74,14 @@ North Star KPI:
 
 | KPI | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Cost per audited repository | 8.674 s (26.021 s / 3 repositories) | stays under 5 s per repo | Fleet audit duration divided by repository count |
+| Cost per audited repository | 8.979 s (26.937 s / 3 repositories), read 2026-08-22 | stays under 5 s per repo | Fleet audit duration divided by repository count |
 
 Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
 | Governed controls | 26 (14 repository, 12 organization) | grows only with a recorded decision | `src/governance_tools/baseline.json` |
-| Repositories covered by a fleet audit | 3 (every non-archived `fld-forge` repo) | 100% of `fld-forge` repositories | `scripts/audit.py --all` enumerates them |
+| Repositories covered by a fleet audit | 3 (every non-archived `fld-forge` repo), read 2026-08-22 | 100% of `fld-forge` repositories | `scripts/audit.py --all` enumerates them |
 | Unaudited repository able to pass a run | 0 (structurally impossible) | 0, always | Missing controls back-fill as `ERR` and force a non-zero exit |
 
 A KPI that is always green effortlessly should be tightened; a KPI that is always red should be fixed or dropped.
