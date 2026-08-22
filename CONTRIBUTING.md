@@ -21,8 +21,11 @@ touches the network.
 
 `main` is protected: direct pushes are rejected and every change lands through
 a pull request. Work on a branch, let the pre-commit hooks run the gates at
-each commit (`uv run pre-commit run --all-files` replays them on demand),
-push the branch, open a PR, and merge (squash) once the checks are green.
+each commit (`uv run pre-commit run --all-files` replays them on demand), push
+the branch, open a PR, and merge (squash) once the checks are green. The
+secrets gate is the one exception to that replay: gitleaks reads the staged
+diff, so it has nothing to scan when nothing is staged. Use
+`gitleaks git --redact -v .` for the full-history scan CI runs.
 
 ## Quality gates
 
