@@ -23,9 +23,11 @@ repos:
   - repo: https://github.com/gitleaks/gitleaks
     # rev matches the gitleaks version pinned in the CI secrets-scan job:
     # same engine local and remote, so a commit blocked here is blocked there.
-    # Scans the staged diff (CI scans full history): the last local gate that is
-    # installed, not an airtight one - merge, rebase and --no-verify all bypass
-    # it, so the full-history scan in CI stays the net.
+    # Scans the staged diff (CI scans full history). It covers the commit and
+    # merge-commit paths, but is not airtight: a fast-forward merge writes no
+    # commit to gate, rebase and cherry-pick replay without running it,
+    # --no-verify skips it, and a clone that never ran the install has no hook
+    # at all. The full-history scan in CI is the net that needs no local setup.
     rev: v8.24.3
     hooks:
       # always_run: same reason as the local gates below - this hook reads the
