@@ -16,8 +16,9 @@ repos:
   - repo: https://github.com/gitleaks/gitleaks
     # rev matches the gitleaks version pinned in the CI secrets-scan job:
     # same engine local and remote, so a commit blocked here is blocked there.
-    # Scans the staged diff (CI scans full history) - the last point at which
-    # a secret can still be caught before it is pushed and burned.
+    # Scans the staged diff (CI scans full history): the last local gate that is
+    # installed, not an airtight one - merge, rebase and --no-verify all bypass
+    # it, so the full-history scan in CI stays the net.
     rev: v8.24.3
     hooks:
       # always_run: same reason as the local gates below - this hook reads the
