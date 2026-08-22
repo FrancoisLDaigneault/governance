@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/fld-forge/governance/compare/v0.8.3...v0.8.4) (2026-08-22)
+
+
+### Documentation
+
+* correct the audit token's documented scope ([#49](https://github.com/fld-forge/governance/issues/49)) ([5da654c](https://github.com/fld-forge/governance/commit/5da654c93033802c242fa2767b1243ce2c9b24e1))
+
 ## [0.8.3](https://github.com/fld-forge/governance/compare/v0.8.2...v0.8.3) (2026-08-22)
 
 

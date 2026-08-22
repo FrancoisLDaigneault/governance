@@ -1,6 +1,6 @@
 [project]
 name = "governance-tools"
-version = "0.8.3"
+version = "0.8.4"
 description = "Apply and audit the GitHub repository governance baseline across a fleet"
 license = "MIT"
 license-files = ["LICENSE"]
