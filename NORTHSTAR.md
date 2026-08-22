@@ -18,7 +18,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.87 s (255 tests), 280 cases passed | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 1.87 s (256 tests), 281 cases passed | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -57,7 +57,7 @@ Supporting indicators:
 | Static-analysis violations | 0 | 0 | Ruff, ty, mypy, deptry, Import Linter, Semgrep and CodeQL gates |
 | Required pull-request checks | 8 of 8 green | 8 of 8 green | Live `main-protection` ruleset and PR check rollup |
 | src module / script size | max 197 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 255 (241 unit / 14 integration), 280 cases passed | 100% green | `uv run pytest` (pre-commit framework + CI) |
+| Green tests | 256 (242 unit / 14 integration), 281 cases passed | 100% green | `uv run pytest` (pre-commit framework + CI) |
 | Modules performing network IO | 1 of 15 (`gh.py`) | stays 1 | Import Linter contracts; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |
 
 ## Scalability

@@ -11,7 +11,9 @@ silently rot.
 import re
 import tomllib
 
+import pytest
 import test_standards
+import yaml
 
 from governance_tools.baseline import load_controls
 from governance_tools.readme import render_block, updated_text
@@ -19,6 +21,21 @@ from governance_tools.readme import render_block, updated_text
 REPO = test_standards.REPO
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
 TIERS = ("unit", "integration")
+GITLEAKS_REPO = "https://github.com/gitleaks/gitleaks"
+
+# A decoy hook reusing the official id under another repo. A review proved the
+# earlier line-matching check accepted it, leaving the real hook unguarded.
+DECOY_GITLEAKS_CONFIG = """
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        always_run: true
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+"""
 
 
 def _text(rel: str) -> str:
@@ -104,17 +121,44 @@ def test_gate_commands_in_precommit_hooks() -> None:
     assert not missing, f".pre-commit-config.yaml: local-hook entries missing: {missing}"
 
 
-def _hook_block(config: str, hook_id: str) -> list[str]:
-    """The lines of one hook entry, from its `- id:` up to the next entry."""
-    lines = config.splitlines()
-    start = next((i for i, line in enumerate(lines) if line.strip() == f"- id: {hook_id}"), None)
-    assert start is not None, f".pre-commit-config.yaml: hook {hook_id!r} not found"
-    block = [lines[start]]
-    for line in lines[start + 1 :]:
-        if re.match(r"\s*- (id|repo):", line):
-            break
-        block.append(line)
-    return block
+def _config(raw: str | None = None) -> dict[str, object]:
+    """The parsed pre-commit configuration; the shipped file unless overridden.
+
+    Parsing is what makes the assertions below discriminate: text matching
+    accepts a claim written in a comment, and an id lookup accepts a same-id
+    hook declared under any other repo. `safe_load` accepts neither.
+    """
+    parsed = yaml.safe_load(_text(".pre-commit-config.yaml") if raw is None else raw)
+    assert isinstance(parsed, dict), ".pre-commit-config.yaml: the top level is not a mapping"
+    return parsed
+
+
+def _official_hook(config: dict[str, object], repo_url: str, hook_id: str) -> dict[str, object]:
+    """One hook entry, identified by its owning repo and not by its id alone."""
+    repos = config.get("repos")
+    assert isinstance(repos, list), ".pre-commit-config.yaml: 'repos' is not a list"
+    hooks: list[dict[str, object]] = []
+    for entry in repos:
+        if not isinstance(entry, dict) or entry.get("repo") != repo_url:
+            continue
+        declared = entry.get("hooks")
+        assert isinstance(declared, list), f".pre-commit-config.yaml: {repo_url} has no hook list"
+        hooks += [h for h in declared if isinstance(h, dict) and h.get("id") == hook_id]
+    assert len(hooks) == 1, (
+        f".pre-commit-config.yaml: expected exactly one {hook_id!r} hook under {repo_url}, "
+        f"found {len(hooks)}"
+    )
+    return hooks[0]
+
+
+def _assert_secrets_gate_always_runs(config: dict[str, object]) -> None:
+    """The shared assertion, so the negative test exercises the real check."""
+    hook = _official_hook(config, GITLEAKS_REPO, "gitleaks")
+    assert hook.get("always_run") is True, (
+        ".pre-commit-config.yaml: the gitleaks hook must declare 'always_run: true', "
+        "like every other whole-project gate, or pre-commit skips it when no "
+        "staged file matches a filter"
+    )
 
 
 def test_secrets_gate_always_runs() -> None:
@@ -126,12 +170,18 @@ def test_secrets_gate_always_runs() -> None:
     exactly like the local whole-project gates that all carry `always_run: true`
     here, so it belongs to the same class and is asserted with them.
     """
-    block = _hook_block(_text(".pre-commit-config.yaml"), "gitleaks")
-    assert any(line.strip() == "always_run: true" for line in block), (
-        ".pre-commit-config.yaml: the gitleaks hook must declare 'always_run: true', "
-        "like every other whole-project gate, or pre-commit skips it when no "
-        "staged file matches a filter"
-    )
+    _assert_secrets_gate_always_runs(_config())
+
+
+def test_secrets_gate_check_rejects_a_decoy_hook() -> None:
+    """A same-id hook under another repo must not satisfy the gate.
+
+    This is the mutation a review used to prove the earlier line-matching
+    check was vacuous: it took the first `- id: gitleaks` it found, so a decoy
+    carrying `always_run` let the official hook go without it.
+    """
+    with pytest.raises(AssertionError):
+        _assert_secrets_gate_always_runs(_config(DECOY_GITLEAKS_CONFIG))
 
 
 def _setup_commands() -> list[str]:
