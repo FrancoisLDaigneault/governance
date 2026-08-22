@@ -86,8 +86,24 @@ jobs:
         run: sha256sum * > SHA256SUMS
         working-directory: dist
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        id: attest
         with:
           subject-path: dist/*
+      - name: Ship the provenance bundle under a discoverable name
+        # The action writes its Sigstore bundle to RUNNER_TEMP as
+        # "attestation.json", so nothing reaches the release page: Scorecard's
+        # Signed-Releases check recognizes provenance only by the asset-name
+        # suffix ".intoto.jsonl" (ossf/scorecard, probes/releasesHaveProvenance
+        # /impl.go), and a consumer had no bundle to verify offline against.
+        # Copying it into dist/ lets the upload step below ship it unchanged.
+        # MUST stay after the attestation step: a file sitting in dist/ when
+        # "subject-path: dist/*" is evaluated becomes a stray attested subject,
+        # exactly like the dist/.gitignore removed above. For the same reason
+        # it is absent from SHA256SUMS, which is itself an attested subject and
+        # cannot be regenerated afterwards without voiding its own attestation.
+        run: cp "$BUNDLE" dist/attestation.intoto.jsonl
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
       - name: Upload assets to the draft release
         run: gh release upload "$TAG" dist/* --clobber -R "$REPO"
         env:

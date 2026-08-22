@@ -123,7 +123,7 @@ def test_release_workflow_documented() -> None:
             f"quote {anchor!r} (required_signatures blocks GraphQL merges of "
             f"unsigned release-please heads)"
         )
-    assets = set(re.findall(r"(sbom\.\w+\.json|SHA256SUMS)", workflow))
+    assets = set(re.findall(r"(sbom\.\w+\.json|SHA256SUMS|attestation\.intoto\.jsonl)", workflow))
     assert assets, "release-please.yml: no generated release asset names found"
     security = test_docs._text("SECURITY.md")
     missing = [asset for asset in sorted(assets) if asset not in security]
