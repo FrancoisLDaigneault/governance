@@ -4,10 +4,13 @@
 
 ```bash
 uv sync --locked   # creates .venv/ and installs the package + dev tools
-# installs the framework hooks (.pre-commit-config.yaml); both types, because a
-# merge that commits on its own runs pre-merge-commit rather than pre-commit
-uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-merge-commit
+uv run pre-commit install --install-hooks   # installs the framework hooks
 ```
+
+That installs the `pre-commit` and `pre-merge-commit` hook types, because
+`.pre-commit-config.yaml` declares both in `default_install_hook_types`: a merge
+that commits on its own runs the second one, and would otherwise bring in
+changes no gate ever saw.
 
 With [just](https://just.systems) installed, `just setup` runs both commands in
 one step and clears any legacy `core.hooksPath` setting (optional -- the

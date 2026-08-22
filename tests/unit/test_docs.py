@@ -22,6 +22,14 @@ REPO = test_standards.REPO
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
 TIERS = ("unit", "integration")
 GITLEAKS_REPO = "https://github.com/gitleaks/gitleaks"
+INSTALL_HOOK_TYPES = ("pre-commit", "pre-merge-commit")
+
+# The hook types declared in a comment instead of in the mapping. A review
+# proved the earlier text search accepted this, though it installs nothing.
+COMMENTED_INSTALL_TYPES_CONFIG = """
+# default_install_hook_types: [pre-commit, pre-merge-commit]
+repos: []
+"""
 
 # A decoy hook reusing the official id under another repo. A review proved the
 # earlier line-matching check accepted it, leaving the real hook unguarded.
@@ -184,16 +192,18 @@ def test_secrets_gate_check_rejects_a_decoy_hook() -> None:
         _assert_secrets_gate_always_runs(_config(DECOY_GITLEAKS_CONFIG))
 
 
-def _setup_commands() -> list[str]:
-    """The commands of the justfile `setup` recipe (source of truth)."""
-    lines = _text("justfile").splitlines()
-    start = lines.index("setup:") + 1
-    block = []
-    for line in lines[start:]:
-        if not line.startswith(" "):
-            break
-        block.append(line.strip())
-    return block
+def _assert_both_hook_types_installed(config: dict[str, object]) -> None:
+    """The shared assertion, so the negative test exercises the real check."""
+    declared = config.get("default_install_hook_types")
+    assert isinstance(declared, list), (
+        ".pre-commit-config.yaml: 'default_install_hook_types' must be declared as a "
+        "list, or a plain 'pre-commit install' wires the pre-commit type only"
+    )
+    missing = [hook_type for hook_type in INSTALL_HOOK_TYPES if hook_type not in declared]
+    assert not missing, (
+        f".pre-commit-config.yaml: 'default_install_hook_types' is missing {missing}, "
+        "so git runs no hook on that path"
+    )
 
 
 def test_setup_installs_both_hook_types() -> None:
@@ -201,15 +211,22 @@ def test_setup_installs_both_hook_types() -> None:
 
     Git does not run the pre-commit hook when a merge commits on its own: it
     runs pre-merge-commit. Installing only the default type leaves that path
-    ungated, so a secret arriving through a local merge lands unscanned.
+    ungated, so a secret arriving through a local merge lands unscanned. The
+    types are asserted on the config rather than on an install command, so
+    every documented way of installing gets them, not just `just setup`.
     """
-    install = [cmd for cmd in _setup_commands() if "pre-commit install" in cmd]
-    assert install, "justfile setup recipe: no 'pre-commit install' command found"
-    for hook_type in ("pre-commit", "pre-merge-commit"):
-        assert any(f"--hook-type {hook_type}" in cmd for cmd in install), (
-            f"justfile setup recipe: 'pre-commit install' must pass '--hook-type "
-            f"{hook_type}', or git runs no hook on that path"
-        )
+    _assert_both_hook_types_installed(_config())
+
+
+def test_hook_type_check_rejects_a_commented_declaration() -> None:
+    """A commented-out declaration must not satisfy the check.
+
+    This is the mutation a review used to prove the earlier text search was
+    vacuous: it accepted the install command when it appeared in a comment
+    only, which installs nothing at all.
+    """
+    with pytest.raises(AssertionError):
+        _assert_both_hook_types_installed(_config(COMMENTED_INSTALL_TYPES_CONFIG))
 
 
 def test_size_caps_documented() -> None:
