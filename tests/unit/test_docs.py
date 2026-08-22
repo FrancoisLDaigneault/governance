@@ -134,6 +134,34 @@ def test_secrets_gate_always_runs() -> None:
     )
 
 
+def _setup_commands() -> list[str]:
+    """The commands of the justfile `setup` recipe (source of truth)."""
+    lines = _text("justfile").splitlines()
+    start = lines.index("setup:") + 1
+    block = []
+    for line in lines[start:]:
+        if not line.startswith(" "):
+            break
+        block.append(line.strip())
+    return block
+
+
+def test_setup_installs_both_hook_types() -> None:
+    """Onboarding must wire pre-merge-commit too, or merges bypass every gate.
+
+    Git does not run the pre-commit hook when a merge commits on its own: it
+    runs pre-merge-commit. Installing only the default type leaves that path
+    ungated, so a secret arriving through a local merge lands unscanned.
+    """
+    install = [cmd for cmd in _setup_commands() if "pre-commit install" in cmd]
+    assert install, "justfile setup recipe: no 'pre-commit install' command found"
+    for hook_type in ("pre-commit", "pre-merge-commit"):
+        assert any(f"--hook-type {hook_type}" in cmd for cmd in install), (
+            f"justfile setup recipe: 'pre-commit install' must pass '--hook-type "
+            f"{hook_type}', or git runs no hook on that path"
+        )
+
+
 def test_size_caps_documented() -> None:
     module_cap = test_standards.MAX_MODULE_LINES
     script_cap = test_standards.MAX_SCRIPT_LINES

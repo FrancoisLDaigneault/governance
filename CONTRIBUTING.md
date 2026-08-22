@@ -3,8 +3,10 @@
 ## Setup
 
 ```bash
-uv sync --locked                            # creates .venv/ and installs the package + dev tools
-uv run pre-commit install --install-hooks   # installs the framework hooks (.pre-commit-config.yaml)
+uv sync --locked   # creates .venv/ and installs the package + dev tools
+# installs the framework hooks (.pre-commit-config.yaml); both types, because a
+# merge that commits on its own runs pre-merge-commit rather than pre-commit
+uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-merge-commit
 ```
 
 With [just](https://just.systems) installed, `just setup` runs both commands in

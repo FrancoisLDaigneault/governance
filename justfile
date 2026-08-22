@@ -1,11 +1,13 @@
 # Optional convenience task runner (https://just.systems).
 # Every command below works standalone -- just is never required.
 
-# One-command onboarding: install deps and the pre-commit framework hooks
+# One-command onboarding: install deps and the pre-commit framework hooks.
+# Both hook types are installed: a merge that commits on its own runs
+# pre-merge-commit, not pre-commit, so the gates would miss merged-in changes.
 setup:
     uv sync --locked
     git config --unset-all core.hooksPath || true
-    uv run pre-commit install --install-hooks
+    uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-merge-commit
 
 # Run the quality gates (same quality commands as the CI quality job)
 check:
