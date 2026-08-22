@@ -141,17 +141,22 @@ def _config(raw: str | None = None) -> dict[str, object]:
     return parsed
 
 
-def _official_hook(config: dict[str, object], repo_url: str, hook_id: str) -> dict[str, object]:
-    """One hook entry, identified by its owning repo and not by its id alone."""
+def _official_repo(config: dict[str, object], repo_url: str) -> dict[str, object]:
+    """The single repo entry for one upstream, so a decoy cannot stand in."""
     repos = config.get("repos")
     assert isinstance(repos, list), ".pre-commit-config.yaml: 'repos' is not a list"
-    hooks: list[dict[str, object]] = []
-    for entry in repos:
-        if not isinstance(entry, dict) or entry.get("repo") != repo_url:
-            continue
-        declared = entry.get("hooks")
-        assert isinstance(declared, list), f".pre-commit-config.yaml: {repo_url} has no hook list"
-        hooks += [h for h in declared if isinstance(h, dict) and h.get("id") == hook_id]
+    entries = [e for e in repos if isinstance(e, dict) and e.get("repo") == repo_url]
+    assert len(entries) == 1, (
+        f".pre-commit-config.yaml: expected exactly one {repo_url} entry, found {len(entries)}"
+    )
+    return entries[0]
+
+
+def _official_hook(config: dict[str, object], repo_url: str, hook_id: str) -> dict[str, object]:
+    """One hook entry, identified by its owning repo and not by its id alone."""
+    declared = _official_repo(config, repo_url).get("hooks")
+    assert isinstance(declared, list), f".pre-commit-config.yaml: {repo_url} has no hook list"
+    hooks = [h for h in declared if isinstance(h, dict) and h.get("id") == hook_id]
     assert len(hooks) == 1, (
         f".pre-commit-config.yaml: expected exactly one {hook_id!r} hook under {repo_url}, "
         f"found {len(hooks)}"
@@ -190,6 +195,69 @@ def test_secrets_gate_check_rejects_a_decoy_hook() -> None:
     """
     with pytest.raises(AssertionError):
         _assert_secrets_gate_always_runs(_config(DECOY_GITLEAKS_CONFIG))
+
+
+def _ci_gitleaks_version() -> str:
+    """The gitleaks version the CI secrets-scan job downloads.
+
+    Every version token in the job must agree: the release tag selects the
+    download while the archive and checksum names address files inside it, so
+    a bump that misses one of them leaves the job fetching a tag that does not
+    carry the asset it then unpacks. Reading them all keeps this helper honest
+    about the single version CI really runs.
+    """
+    job = re.search(
+        r"^  secrets-scan:\n(.*?)(?=^  \S|\Z)",
+        _text(".github/workflows/ci.yml"),
+        re.MULTILINE | re.DOTALL,
+    )
+    assert job, "ci.yml: the secrets-scan job was not found"
+    versions: set[str] = set(re.findall(r"(?:download/v|gitleaks_)(\d+\.\d+\.\d+)", job.group(1)))
+    assert len(versions) == 1, (
+        f"ci.yml secrets-scan: the gitleaks version tokens disagree ({sorted(versions)}), "
+        "so the job downloads a release tag that does not carry the asset it unpacks"
+    )
+    return versions.pop()
+
+
+def _assert_gitleaks_rev_matches_ci(config: dict[str, object], ci_version: str) -> None:
+    """The shared assertion, so the negative test exercises the real check."""
+    rev = _official_repo(config, GITLEAKS_REPO).get("rev")
+    assert rev == f"v{ci_version}", (
+        f".pre-commit-config.yaml pins the gitleaks hook at {rev!r} while the CI "
+        f"secrets-scan job downloads v{ci_version}: local and CI no longer run the "
+        "same scanner, so a commit this hook accepts can still fail CI and the "
+        "parity the hook comment claims is gone"
+    )
+
+
+def test_gitleaks_rev_matches_ci() -> None:
+    """The hook and CI must pin one gitleaks version, as the config claims.
+
+    The hook earns its place by being the engine CI runs: same version, same
+    rules, so a commit blocked here is blocked there. Nothing else ties the
+    two together - the hook rev and the CI download live in different files -
+    so a bump on either side would quietly end the parity that justifies the
+    gate, leaving a local scan that no longer predicts the remote one.
+    """
+    _assert_gitleaks_rev_matches_ci(_config(), _ci_gitleaks_version())
+
+
+def test_gitleaks_rev_check_rejects_a_stale_rev() -> None:
+    """A hook rev that no longer matches CI must fail the gate.
+
+    This is the mutation a review used to prove nothing guarded the parity
+    claim: the hook was moved to an older tag and the whole suite stayed green.
+    """
+    ci_version = _ci_gitleaks_version()
+    stale = "v8.23.0"
+    assert stale != f"v{ci_version}", (
+        f"this negative test needs a rev differing from CI's v{ci_version}"
+    )
+    config = _config()
+    _official_repo(config, GITLEAKS_REPO)["rev"] = stale
+    with pytest.raises(AssertionError):
+        _assert_gitleaks_rev_matches_ci(config, ci_version)
 
 
 def _assert_both_hook_types_installed(config: dict[str, object]) -> None:
