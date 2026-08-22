@@ -18,7 +18,7 @@ Supporting indicators:
 
 | Indicator | Current | Target | Measurement |
 | --- | --- | --- | --- |
-| Test suite duration | 1.87 s (261 tests), 286 cases passed | < 5 s | `uv run pytest -q` (CI gate) |
+| Test suite duration | 1.87 s (262 tests), 287 cases passed | < 5 s | `uv run pytest -q` (CI gate) |
 | Time to bring one repository to compliance | not yet measured | < 2 min wall clock | Time `scripts/bootstrap.py OWNER/REPO --apply` end to end |
 
 Measurement cadence: CI runs on every push/PR to `main` and every Tuesday at
@@ -38,7 +38,7 @@ Supporting indicators:
 | --- | --- | --- | --- |
 | Fleet drift cells | 0 (3 repositories + 1 organization) | 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
-| Release integrity (SBOM + provenance attestation) | v0.8.0 verified: 5 assets, attestation and checksums pass (2026-08-21) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
+| Release integrity (SBOM + provenance attestation) | v0.8.3 verified: 6 assets, attestation and checksums pass (verified 2026-08-22) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, Dependency Review, `uv audit --locked`, pip-audit, Dependabot, secret scanning) |
 | Semgrep CE findings | 0 in the adoption preflight | 0 | `uvx semgrep==1.173.0 scan --config p/python --metrics=off --error src scripts` (CI gate) |
 
@@ -57,7 +57,7 @@ Supporting indicators:
 | Static-analysis violations | 0 | 0 | Ruff, ty, mypy, deptry, Import Linter, Semgrep and CodeQL gates |
 | Required pull-request checks | 8 of 8 green | 8 of 8 green | Live `main-protection` ruleset and PR check rollup |
 | src module / script size | max 197 / 8 lines | <= 200 / <= 20 | `tests/unit/test_standards.py` (the limit is a test) |
-| Green tests | 261 (247 unit / 14 integration), 286 cases passed | 100% green | `uv run pytest` (pre-commit framework + CI) |
+| Green tests | 262 (248 unit / 14 integration), 287 cases passed | 100% green | `uv run pytest` (pre-commit framework + CI) |
 | Modules performing network IO | 1 of 15 (`gh.py`) | stays 1 | Import Linter contracts; everything else takes a `GhClient` (`scheduled_audit` writes only its own log files) |
 
 ## Scalability
