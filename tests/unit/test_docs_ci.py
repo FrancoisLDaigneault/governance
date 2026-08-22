@@ -28,6 +28,17 @@ JOB_TOOLS = {
     "zizmor": "zizmor",
 }
 
+# Fragments of the release-assets commands that populate or prune dist/. Each
+# has to run before the attestation freezes its subjects; see
+# test_release_asset_step_order.
+DIST_PRODUCERS = (
+    "uv build",
+    "rm -f dist/.gitignore",
+    "sbom.cdx.json",
+    "sbom.spdx.json",
+    "SHA256SUMS",
+)
+
 
 def _workflow(name: str) -> str:
     return (REPO / ".github" / "workflows" / name).read_text(encoding="utf-8")
@@ -39,6 +50,32 @@ def _cron(workflow: str) -> tuple[str, str]:
     assert len(crons) == 1, f"{workflow}: expected exactly one weekly cron, found {crons}"
     minute, hour, day = crons[0]
     return WEEKDAYS[int(day)], f"{int(hour):02d}:{int(minute):02d}"
+
+
+def _asset_steps() -> list[str]:
+    """The release-assets steps, each flattened to its action and command.
+
+    `name:` is deliberately left out and comments never survive the parse, so
+    a step is located by what it runs rather than by how it is described.
+    """
+    steps = yaml.safe_load(_workflow("release-please.yml"))["jobs"]["release-assets"]["steps"]
+    return [f"{step.get('uses', '')} {step.get('run', '')}" for step in steps]
+
+
+def _only_step(bodies: list[str], fragment: str, role: str) -> int:
+    """Index of the one release-assets step whose command carries `fragment`.
+
+    Uniqueness is asserted, not assumed: taking the first of several matches
+    would compare an arbitrary index, and the order assertion below would then
+    pass or fail for a reason unrelated to the order it claims to check.
+    """
+    hits = [index for index, body in enumerate(bodies) if fragment in body]
+    assert len(hits) == 1, (
+        f"release-please.yml: expected exactly one release-assets step whose "
+        f"command carries {fragment!r} ({role}), found {len(hits)} at {hits}; "
+        f"the step-order gate cannot tell which one it must compare"
+    )
+    return hits[0]
 
 
 def test_ci_schedule_documented() -> None:
@@ -171,3 +208,40 @@ def test_release_workflow_documented() -> None:
     security = test_docs._text("SECURITY.md")
     missing = [asset for asset in sorted(assets) if asset not in security]
     assert not missing, f"SECURITY.md: release assets not documented: {missing}"
+
+
+def test_release_asset_step_order() -> None:
+    """dist/ is complete before the attestation freezes what it signs.
+
+    The attestation resolves `subject-path: dist/*` once, when it runs. Every
+    step that populates or prunes dist/ therefore has to precede it: a file
+    added afterwards ships unattested, and one left behind that should have
+    gone is signed as a stray subject. That is the v0.7.0 incident, where the
+    dist/.gitignore uv build creates became a subject of the release. The
+    bundle copy is the mirror case and has to follow the attestation, or it
+    would end up attesting itself.
+
+    Reordering these steps is silent: the workflow states the constraint in a
+    comment, the assets look plausible either way, and the damage only shows
+    up in a published release that can no longer be changed.
+    """
+    bodies = _asset_steps()
+    attest = _only_step(bodies, "attest-build-provenance", "attests dist/")
+    for fragment in DIST_PRODUCERS:
+        producer = _only_step(bodies, fragment, "populates or prunes dist/")
+        assert producer < attest, (
+            f"release-please.yml: the release-assets step running {fragment!r} "
+            f"is at index {producer}, after the attestation at index {attest}; "
+            f"it must run before, or what it writes to dist/ ships unattested "
+            f"and what it deletes is attested as a stray subject"
+        )
+    copy = _only_step(bodies, "attestation.intoto.jsonl", "ships the bundle")
+    upload = _only_step(bodies, "gh release upload", "uploads the assets")
+    publish = _only_step(bodies, "--draft=false", "publishes the release")
+    assert attest < copy < upload < publish, (
+        f"release-please.yml: release-assets must attest (index {attest}), then "
+        f"copy the bundle ({copy}), then upload ({upload}), then publish "
+        f"({publish}). Copying before the attestation makes the bundle attest "
+        f"itself; publishing before the upload locks an immutable release with "
+        f"assets missing"
+    )
