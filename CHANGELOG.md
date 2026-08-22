@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/fld-forge/governance/compare/v0.8.2...v0.8.3) (2026-08-22)
+
+
+### Bug Fixes
+
+* **release:** publish the provenance bundle as a release asset ([#46](https://github.com/fld-forge/governance/issues/46)) ([e8f8448](https://github.com/fld-forge/governance/commit/e8f8448992dfb23893fb14af4e2592820471d26a))
+
 ## [0.8.2](https://github.com/fld-forge/governance/compare/v0.8.1...v0.8.2) (2026-08-21)
 
 
