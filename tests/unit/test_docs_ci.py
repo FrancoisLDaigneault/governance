@@ -11,6 +11,7 @@ import re
 
 import test_docs
 import test_standards
+import yaml
 
 REPO = test_standards.REPO
 
@@ -107,16 +108,58 @@ def test_audit_secret_documented() -> None:
 
 
 def test_release_workflow_documented() -> None:
-    """AGENTS' release-PR quirk stays tied to the token fallback the workflow
-    declares, and SECURITY names the assets the release workflow builds."""
+    """AGENTS' release-PR quirk stays tied to the identity the workflow pushes
+    with, and SECURITY names the assets the release workflow builds.
+
+    release-please pushes the release PR with a GitHub App installation
+    token, so the PR gets CI like any other branch. A github.token fallback
+    would silently restore the old behavior (GitHub anti-recursion: no checks
+    on the release PR), so the gate fails if one reappears, and the doc claim
+    must stay unconditional while none does.
+
+    Dropping or renaming the step that mints the token is just as silent: the
+    reference resolves to an empty string, release-please pushes with nothing,
+    and no other gate here parses workflow expressions. So the minting step is
+    asserted alongside the expression that consumes it.
+    """
     workflow = _workflow("release-please.yml")
-    assert "${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}" in workflow, (
-        "release-please.yml: the token fallback changed; revisit the AGENTS.md quirk"
+    # Parsed rather than text-matched: the workflow explains in prose why the
+    # fallback is gone, and that mention must not read as the expression.
+    steps = yaml.safe_load(workflow)["jobs"]["release-please"]["steps"]
+    minted = [step for step in steps if step.get("id") == "app-token"]
+    assert len(minted) == 1, (
+        "release-please.yml: no single step with id 'app-token' mints the "
+        "installation token, so ${{ steps.app-token.outputs.token }} resolves "
+        "to an empty string and the AGENTS.md claim that release PRs run CI "
+        "like any other branch becomes false"
     )
+    release = [step for step in steps if step.get("id") == "release"]
+    assert len(release) == 1, "release-please.yml: no single step with id 'release'"
+    pushed_with = release[0]["with"]["token"]
+    assert pushed_with == "${{ steps.app-token.outputs.token }}", (
+        "release-please.yml: the release PR is no longer pushed with the app "
+        "installation token; rewrite the AGENTS.md release-PR checks quirk "
+        "for whatever identity replaced it"
+    )
+    assert "github.token" not in yaml.dump(steps), (
+        "release-please.yml: a github.token fallback is back; pushes made with "
+        "it trigger no workflow (anti-recursion), so release PRs would silently "
+        "carry no checks instead of failing loudly"
+    )
+    # Both halves are anchored: the identity alone would still read as true
+    # next to a later sentence reinstating a fallback, and a doc that
+    # contradicts itself on this point is what the gate exists to catch.
+    agents_flat = test_docs._flat("AGENTS.md")
+    for claim in (
+        "release-please PRs are pushed with a `fld-forge-release` GitHub App",
+        "There is no `github.token` fallback",
+    ):
+        assert claim in agents_flat, (
+            f"AGENTS.md: release-PR checks quirk is missing {claim!r}; it must "
+            f"state both the app identity and that nothing falls back to "
+            f"github.token, or the claim stops matching the workflow"
+        )
     agents = test_docs._text("AGENTS.md")
-    assert "RELEASE_PLEASE_TOKEN" in agents, (
-        "AGENTS.md: the release-PR checks quirk must name RELEASE_PLEASE_TOKEN"
-    )
     for anchor in ("merge_method=squash", "-f sha=", "verification.verified"):
         assert anchor in agents, (
             f"AGENTS.md: the guarded REST squash runbook for release PRs must "

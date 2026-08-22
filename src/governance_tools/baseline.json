@@ -19,7 +19,7 @@
     {
       "id": "ruleset-main-protection",
       "kind": "ruleset",
-      "description": "Default branch ruleset: PR required (0 approvals), force-push and deletion blocked, signed commits required, no bypass actors, and the CI quality gates (CodeQL, dependency-review, pip-audit, quality, secrets-scan, semgrep, uv-audit, zizmor) required to pass before merge with the branch up to date. ADR-0009: the checks rule only becomes safe to apply once release-please pushes with RELEASE_PLEASE_TOKEN, because bot-token pushes trigger no CI and a release PR would deadlock. fld-forge/.github requires its own CodeQL and validation contexts instead of the complete Python-profile context set",
+      "description": "Default branch ruleset: PR required (0 approvals), force-push and deletion blocked, signed commits required, no bypass actors, and the CI quality gates (CodeQL, dependency-review, pip-audit, quality, secrets-scan, semgrep, uv-audit, zizmor) required to pass before merge with the branch up to date. ADR-0009: the checks rule only becomes safe to apply once release-please pushes with the fld-forge-release app installation token, because bot-token pushes trigger no CI and a release PR would deadlock. fld-forge/.github requires its own CodeQL and validation contexts instead of the complete Python-profile context set",
       "applicability": "public",
       "ruleset_name": "main-protection",
       "read_endpoint": "repos/{repo}/rulesets",
