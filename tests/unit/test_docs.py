@@ -9,9 +9,14 @@ silently rot.
 """
 
 import re
+import subprocess
+import sys
 import tomllib
+from pathlib import Path
 
+import pytest
 import test_standards
+import yaml
 
 from governance_tools.baseline import load_controls
 from governance_tools.readme import render_block, updated_text
@@ -19,6 +24,36 @@ from governance_tools.readme import render_block, updated_text
 REPO = test_standards.REPO
 DOCS = ("README.md", "CONTRIBUTING.md", "AGENTS.md")
 TIERS = ("unit", "integration")
+GITLEAKS_REPO = "https://github.com/gitleaks/gitleaks"
+INSTALL_HOOK_TYPES = ("pre-commit", "pre-merge-commit")
+
+# The hook types declared in a comment instead of in the mapping. A review
+# proved the earlier text search accepted this, though it installs nothing.
+COMMENTED_INSTALL_TYPES_CONFIG = """
+# default_install_hook_types: [pre-commit, pre-merge-commit]
+repos: []
+"""
+
+# Both required hook types plus an unknown one. A review proved our own reads
+# accept this, while pre-commit rejects the file and installs nothing.
+EXTRA_INVALID_HOOK_TYPE_CONFIG = """
+default_install_hook_types: [pre-commit, pre-merge-commit, pre-merge_commit]
+repos: []
+"""
+
+# A decoy hook reusing the official id under another repo. A review proved the
+# earlier line-matching check accepted it, leaving the real hook unguarded.
+DECOY_GITLEAKS_CONFIG = """
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        always_run: true
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+"""
 
 
 def _text(rel: str) -> str:
@@ -102,6 +137,224 @@ def test_gate_commands_in_precommit_hooks() -> None:
     config = _text(".pre-commit-config.yaml")
     missing = [cmd for cmd in commands if f"entry: {cmd}" not in config]
     assert not missing, f".pre-commit-config.yaml: local-hook entries missing: {missing}"
+
+
+def _config(raw: str | None = None) -> dict[str, object]:
+    """The parsed pre-commit configuration; the shipped file unless overridden.
+
+    Parsing is what makes the assertions below discriminate: text matching
+    accepts a claim written in a comment, and an id lookup accepts a same-id
+    hook declared under any other repo. `safe_load` accepts neither.
+    """
+    parsed = yaml.safe_load(_text(".pre-commit-config.yaml") if raw is None else raw)
+    assert isinstance(parsed, dict), ".pre-commit-config.yaml: the top level is not a mapping"
+    return parsed
+
+
+def _official_repo(config: dict[str, object], repo_url: str) -> dict[str, object]:
+    """The single repo entry for one upstream, so a decoy cannot stand in."""
+    repos = config.get("repos")
+    assert isinstance(repos, list), ".pre-commit-config.yaml: 'repos' is not a list"
+    entries = [e for e in repos if isinstance(e, dict) and e.get("repo") == repo_url]
+    assert len(entries) == 1, (
+        f".pre-commit-config.yaml: expected exactly one {repo_url} entry, found {len(entries)}"
+    )
+    return entries[0]
+
+
+def _official_hook(config: dict[str, object], repo_url: str, hook_id: str) -> dict[str, object]:
+    """One hook entry, identified by its owning repo and not by its id alone."""
+    declared = _official_repo(config, repo_url).get("hooks")
+    assert isinstance(declared, list), f".pre-commit-config.yaml: {repo_url} has no hook list"
+    hooks = [h for h in declared if isinstance(h, dict) and h.get("id") == hook_id]
+    assert len(hooks) == 1, (
+        f".pre-commit-config.yaml: expected exactly one {hook_id!r} hook under {repo_url}, "
+        f"found {len(hooks)}"
+    )
+    return hooks[0]
+
+
+def _assert_secrets_gate_always_runs(config: dict[str, object]) -> None:
+    """The shared assertion, so the negative test exercises the real check."""
+    hook = _official_hook(config, GITLEAKS_REPO, "gitleaks")
+    assert hook.get("always_run") is True, (
+        ".pre-commit-config.yaml: the gitleaks hook must declare 'always_run: true', "
+        "like every other whole-project gate, or pre-commit skips it when no "
+        "staged file matches a filter"
+    )
+
+
+def test_secrets_gate_always_runs() -> None:
+    """The secrets gate reads the index itself, so it must not be file-filtered.
+
+    pre-commit skips a hook whose filtered file list came out empty unless it
+    declares `always_run`; `pass_filenames: false` does not exempt it, that flag
+    is read after the skip decision. gitleaks scans the staged diff on its own,
+    exactly like the local whole-project gates that all carry `always_run: true`
+    here, so it belongs to the same class and is asserted with them.
+    """
+    _assert_secrets_gate_always_runs(_config())
+
+
+def test_secrets_gate_check_rejects_a_decoy_hook() -> None:
+    """A same-id hook under another repo must not satisfy the gate.
+
+    This is the mutation a review used to prove the earlier line-matching
+    check was vacuous: it took the first `- id: gitleaks` it found, so a decoy
+    carrying `always_run` let the official hook go without it.
+    """
+    with pytest.raises(AssertionError):
+        _assert_secrets_gate_always_runs(_config(DECOY_GITLEAKS_CONFIG))
+
+
+def _ci_gitleaks_version() -> str:
+    """The gitleaks version the CI secrets-scan job downloads.
+
+    Every version token in the job must agree: the release tag selects the
+    download while the archive and checksum names address files inside it, so
+    a bump that misses one of them leaves the job fetching a tag that does not
+    carry the asset it then unpacks. Reading them all keeps this helper honest
+    about the single version CI really runs.
+    """
+    job = re.search(
+        r"^  secrets-scan:\n(.*?)(?=^  \S|\Z)",
+        _text(".github/workflows/ci.yml"),
+        re.MULTILINE | re.DOTALL,
+    )
+    assert job, "ci.yml: the secrets-scan job was not found"
+    versions: set[str] = set(re.findall(r"(?:download/v|gitleaks_)(\d+\.\d+\.\d+)", job.group(1)))
+    assert len(versions) == 1, (
+        f"ci.yml secrets-scan: the gitleaks version tokens disagree ({sorted(versions)}), "
+        "so the job downloads a release tag that does not carry the asset it unpacks"
+    )
+    return versions.pop()
+
+
+def _assert_gitleaks_rev_matches_ci(config: dict[str, object], ci_version: str) -> None:
+    """The shared assertion, so the negative test exercises the real check."""
+    rev = _official_repo(config, GITLEAKS_REPO).get("rev")
+    assert rev == f"v{ci_version}", (
+        f".pre-commit-config.yaml pins the gitleaks hook at {rev!r} while the CI "
+        f"secrets-scan job downloads v{ci_version}: local and CI no longer run the "
+        "same scanner, so a commit this hook accepts can still fail CI and the "
+        "parity the hook comment claims is gone"
+    )
+
+
+def test_gitleaks_rev_matches_ci() -> None:
+    """The hook and CI must pin one gitleaks version, as the config claims.
+
+    The hook earns its place by being the engine CI runs: same version, same
+    rules, so a commit blocked here is blocked there. Nothing else ties the
+    two together - the hook rev and the CI download live in different files -
+    so a bump on either side would quietly end the parity that justifies the
+    gate, leaving a local scan that no longer predicts the remote one.
+    """
+    _assert_gitleaks_rev_matches_ci(_config(), _ci_gitleaks_version())
+
+
+def test_gitleaks_rev_check_rejects_a_stale_rev() -> None:
+    """A hook rev that no longer matches CI must fail the gate.
+
+    This is the mutation a review used to prove nothing guarded the parity
+    claim: the hook was moved to an older tag and the whole suite stayed green.
+    """
+    ci_version = _ci_gitleaks_version()
+    stale = "v8.23.0"
+    assert stale != f"v{ci_version}", (
+        f"this negative test needs a rev differing from CI's v{ci_version}"
+    )
+    config = _config()
+    _official_repo(config, GITLEAKS_REPO)["rev"] = stale
+    with pytest.raises(AssertionError):
+        _assert_gitleaks_rev_matches_ci(config, ci_version)
+
+
+def _assert_both_hook_types_installed(config: dict[str, object]) -> None:
+    """The shared assertion, so the negative test exercises the real check."""
+    declared = config.get("default_install_hook_types")
+    assert isinstance(declared, list), (
+        ".pre-commit-config.yaml: 'default_install_hook_types' must be declared as a "
+        "list, or a plain 'pre-commit install' wires the pre-commit type only"
+    )
+    missing = [hook_type for hook_type in INSTALL_HOOK_TYPES if hook_type not in declared]
+    assert not missing, (
+        f".pre-commit-config.yaml: 'default_install_hook_types' is missing {missing}, "
+        "so git runs no hook on that path"
+    )
+
+
+def test_setup_installs_both_hook_types() -> None:
+    """Onboarding must wire pre-merge-commit too, or merges bypass every gate.
+
+    Git does not run the pre-commit hook when a merge commits on its own: it
+    runs pre-merge-commit. Installing only the default type leaves that path
+    ungated, so a secret arriving through a local merge lands unscanned. The
+    types are asserted on the config rather than on an install command, so
+    every documented way of installing gets them, not just `just setup`.
+    """
+    _assert_both_hook_types_installed(_config())
+
+
+def test_hook_type_check_rejects_a_commented_declaration() -> None:
+    """A commented-out declaration must not satisfy the check.
+
+    This is the mutation a review used to prove the earlier text search was
+    vacuous: it accepted the install command when it appeared in a comment
+    only, which installs nothing at all.
+    """
+    with pytest.raises(AssertionError):
+        _assert_both_hook_types_installed(_config(COMMENTED_INSTALL_TYPES_CONFIG))
+
+
+def _assert_config_matches_precommit_schema(path: Path) -> None:
+    """The shared assertion, so the negative test exercises the real check.
+
+    Validation goes through pre-commit's own `validate-config` subcommand,
+    the documented interface, rather than importing its schema objects:
+    `pre_commit.clientlib` is private and would move under us, trading one
+    silent gap for another. The venv interpreter runs it, so no PATH lookup
+    decides which pre-commit answers.
+    """
+    # S603: fixed argv, no shell, this venv's own pre-commit on a test path.
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pre_commit", "validate-config", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"{path.name}: pre-commit rejects this configuration, so every hook would "
+        f"fail to install and the repository would run no gate at all:\n"
+        f"{result.stdout}{result.stderr}"
+    )
+
+
+def test_precommit_config_matches_schema() -> None:
+    """The config must satisfy pre-commit itself, not merely our own reads.
+
+    The assertions above check what we require of the file; they cannot know
+    what pre-commit rejects. A config that is invalid to the tool installs
+    nothing, so a repository can look fully gated here while every hook is
+    dead - the schema is the only source that settles it.
+    """
+    _assert_config_matches_precommit_schema(REPO / ".pre-commit-config.yaml")
+
+
+def test_schema_check_rejects_an_invalid_hook_type(tmp_path: Path) -> None:
+    """An unknown hook type must fail, even beside the two required ones.
+
+    This is the mutation a review used to prove our own reads were not
+    enough: the required types are both present, so the check above passes,
+    while pre-commit refuses the whole file. The types are validated rather
+    than constrained to an exact set, so adding a legitimate one later - a
+    pre-push gate, say - stays possible.
+    """
+    invalid = tmp_path / ".pre-commit-config.yaml"
+    invalid.write_text(EXTRA_INVALID_HOOK_TYPE_CONFIG, encoding="utf-8")
+    _assert_both_hook_types_installed(_config(EXTRA_INVALID_HOOK_TYPE_CONFIG))
+    with pytest.raises(AssertionError):
+        _assert_config_matches_precommit_schema(invalid)
 
 
 def test_size_caps_documented() -> None:

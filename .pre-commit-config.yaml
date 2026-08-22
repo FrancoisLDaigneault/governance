@@ -3,6 +3,13 @@
 # Mirror hooks are pinned to tags matching the versions locked in uv.lock;
 # ty, mypy, deptry, Import Linter and pytest run as local system hooks so they
 # use the project venv and stay aligned with CI (see ADR-0008).
+
+# Declared here rather than passed as install flags, so the plain install
+# command every document already prints wires both types: a merge that commits
+# on its own runs pre-merge-commit, not pre-commit, and would otherwise bring in
+# changes no gate ever saw.
+default_install_hook_types: [pre-commit, pre-merge-commit]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -12,6 +19,22 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: https://github.com/gitleaks/gitleaks
+    # rev matches the gitleaks version pinned in the CI secrets-scan job:
+    # same engine local and remote, so a commit blocked here is blocked there.
+    # Scans the staged diff (CI scans full history). It covers the commit and
+    # merge-commit paths, but is not airtight: a fast-forward merge writes no
+    # commit to gate, rebase and cherry-pick replay without running it,
+    # --no-verify skips it, and a clone that never ran the install has no hook
+    # at all. The full-history scan in CI is the net that needs no local setup.
+    rev: v8.24.3
+    hooks:
+      # always_run: same reason as the local gates below - this hook reads the
+      # staged diff itself, so it must not be skipped on a commit whose staged
+      # files match no filter.
+      - id: gitleaks
+        always_run: true
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # rev matches the ruff version in uv.lock

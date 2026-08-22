@@ -42,6 +42,12 @@ gitleaks (full git history), Semgrep CE over `src` and `scripts`, both
 Dependency Review Action. Weekly CodeQL analysis, GitHub secret scanning with
 push protection, and weekly Dependabot updates run on top.
 
+The same gitleaks version runs locally as a pre-commit hook. CI verifies the
+SHA-256 of the gitleaks binary it downloads; the local hook is built by
+pre-commit, which on a machine without Go first fetches an unpinned Go
+toolchain without a checksum check. Local and CI supply-chain assurances are
+therefore not equivalent, and CI remains the authoritative scan.
+
 ## Verifying release assets
 
 Each release ships the wheel, the sdist, a CycloneDX SBOM exported from

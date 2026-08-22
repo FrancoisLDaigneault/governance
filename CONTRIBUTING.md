@@ -3,9 +3,14 @@
 ## Setup
 
 ```bash
-uv sync --locked                            # creates .venv/ and installs the package + dev tools
-uv run pre-commit install --install-hooks   # installs the framework hooks (.pre-commit-config.yaml)
+uv sync --locked   # creates .venv/ and installs the package + dev tools
+uv run pre-commit install --install-hooks   # installs the framework hooks
 ```
+
+That installs the `pre-commit` and `pre-merge-commit` hook types, because
+`.pre-commit-config.yaml` declares both in `default_install_hook_types`: a merge
+that commits on its own runs the second one, and would otherwise bring in
+changes no gate ever saw.
 
 With [just](https://just.systems) installed, `just setup` runs both commands in
 one step and clears any legacy `core.hooksPath` setting (optional -- the
@@ -19,8 +24,14 @@ touches the network.
 
 `main` is protected: direct pushes are rejected and every change lands through
 a pull request. Work on a branch, let the pre-commit hooks run the gates at
-each commit (`uv run pre-commit run --all-files` replays them on demand),
-push the branch, open a PR, and merge (squash) once the checks are green.
+each commit (`uv run pre-commit run --all-files` replays them on demand), push
+the branch, open a PR, and merge (squash) once the checks are green. The
+secrets gate is the one exception to that replay: gitleaks reads the staged
+diff, so it has nothing to scan when nothing is staged. Use
+`gitleaks git --redact -v .` for the full-history scan CI runs. That command
+needs gitleaks installed separately: pre-commit keeps its own pinned copy in an
+internal cache, so whatever version is on your PATH may differ from the one CI
+pins, and only CI's result is authoritative.
 
 ## Quality gates
 

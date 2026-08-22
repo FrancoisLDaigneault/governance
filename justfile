@@ -1,7 +1,9 @@
 # Optional convenience task runner (https://just.systems).
 # Every command below works standalone -- just is never required.
 
-# One-command onboarding: install deps and the pre-commit framework hooks
+# One-command onboarding: install deps and the pre-commit framework hooks.
+# The hook types come from default_install_hook_types in .pre-commit-config.yaml,
+# so this plain command installs the merge-commit gate too.
 setup:
     uv sync --locked
     git config --unset-all core.hooksPath || true
