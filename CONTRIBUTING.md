@@ -28,7 +28,10 @@ each commit (`uv run pre-commit run --all-files` replays them on demand), push
 the branch, open a PR, and merge (squash) once the checks are green. The
 secrets gate is the one exception to that replay: gitleaks reads the staged
 diff, so it has nothing to scan when nothing is staged. Use
-`gitleaks git --redact -v .` for the full-history scan CI runs.
+`gitleaks git --redact -v .` for the full-history scan CI runs. That command
+needs gitleaks installed separately: pre-commit keeps its own pinned copy in an
+internal cache, so whatever version is on your PATH may differ from the one CI
+pins, and only CI's result is authoritative.
 
 ## Quality gates
 
