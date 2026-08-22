@@ -28,19 +28,35 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      # Mints an installation token for the fld-forge-release GitHub App
+      # (Contents + Pull requests, read/write): it expires in an hour, is
+      # revoked when the job ends, and belongs to the organization rather
+      # than to a maintainer's account, so it survives their PAT expiring.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Without these the token inherits every permission the installation
+          # holds; naming them narrows it to what release-please actually does
+          # (push the release branch, open the release PR and label it). The
+          # installation grants exactly these two today, so the narrowing binds
+          # nothing yet: it caps the token if the app is ever granted more.
+          permission-contents: write
+          permission-pull-requests: write
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
           config-file: .github/release-please/release-please-config.json
           manifest-file: .github/release-please/.release-please-manifest.json
-          # RELEASE_PLEASE_TOKEN is a fine-grained PAT (Contents + Pull
-          # requests, read/write). With it, release PRs are pushed as the
-          # user and trigger CI like any other branch, so they can satisfy
-          # the required status checks of ADR-0009. Until the secret exists
-          # this falls back to github.token, which keeps today's behaviour:
-          # release PRs carry no CI runs, and the checks rule must NOT be
-          # applied live (ADR-0009, phase 2).
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          # Release PRs are pushed as the app, so they trigger CI like any
+          # other branch and can satisfy the required status checks of
+          # ADR-0009. Deliberately no "|| github.token" fallback: pushes made
+          # with that token trigger no workflow at all (GitHub
+          # anti-recursion), so falling back would silently open release PRs
+          # carrying no checks. A token that cannot be minted has to fail the
+          # job instead.
+          token: ${{ steps.app-token.outputs.token }}
 
   release-assets:
     # when a draft release was just created: build wheel+sdist, export the
