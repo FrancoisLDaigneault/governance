@@ -38,7 +38,7 @@ Supporting indicators:
 | --- | --- | --- | --- |
 | Fleet drift cells | 0 (3 repositories + 1 organization) | 0 | `uv run python scripts/audit.py --all` |
 | Controls looser than GitHub's default | 0 | 0, always | Baseline review at each change (`GOVERNANCE.md`) |
-| Release integrity (SBOM + provenance attestation) | v0.8.0 verified: 5 assets, attestation and checksums pass (2026-08-21) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
+| Release integrity (SBOM + provenance attestation) | v0.8.3 verified: 6 assets, attestation and checksums pass (verified 2026-08-22) | every release verified | release assets + `gh attestation verify` (see `SECURITY.md`) |
 | Open vulnerability alerts / time-to-patch | baseline not yet recorded | record baseline, then 0 critical open | GitHub Security tab (CodeQL, Dependency Review, `uv audit --locked`, pip-audit, Dependabot, secret scanning) |
 | Semgrep CE findings | 0 in the adoption preflight | 0 | `uvx semgrep==1.173.0 scan --config p/python --metrics=off --error src scripts` (CI gate) |
 
