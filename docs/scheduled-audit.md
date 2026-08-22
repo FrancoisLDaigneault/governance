@@ -87,9 +87,18 @@ red. A red hosted run therefore means either real drift to correct with
 ### Credential scope
 
 The fleet is fixed to `fld-forge`; enumeration does not call `/user` or
-`/user/orgs`. A fine-grained personal access token scoped read-only to all
-repositories in that organization can therefore run the audit without gaining
-access to repositories under any other owner.
+`/user/orgs`. A fine-grained personal access token limited to that
+organization can therefore run the audit without gaining access to
+repositories under any other owner.
+
+Its **repository** permissions are read-only (`administration` and
+`metadata`). Its **organization** permissions are not: `orgs/{org}/rulesets`
+is readable only with organization `administration` at **read and write**, so
+the token carries that level in order to issue a GET. That is a GitHub API
+requirement, not an over-permission to trim - drop it to read and the three
+`org-ruleset-*` controls stop resolving. Anyone auditing this token will see
+write access it never exercises; the reason is here so it does not read as a
+mistake to correct.
 
 The workflow fails with a named error when the matrix carries no row for
 `fld-forge`, so a missing or insufficient credential produces a red run rather
@@ -98,8 +107,10 @@ than a false all-clear.
 ### What the audit reads
 
 The authoritative list is `read_endpoint` in
-`src/governance_tools/baseline.json`. Whatever the credential, it only ever
-needs to **read**: nothing in the audit path writes.
+`src/governance_tools/baseline.json`. Every call the audit makes is a GET:
+nothing in the audit path writes, and `--apply` is the flag that gates the
+corrective calls. That describes the requests, not the permission level - as
+above, reading the organization rulesets still demands a write-level scope.
 
 ## Scope
 

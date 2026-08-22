@@ -215,8 +215,10 @@ The **hosted workflow** (`.github/workflows/fleet-audit.yml`) runs the same
 audit from GitHub-hosted runners on its own weekly schedule and on demand,
 publishes the matrix in the run summary, and keeps a single drift tracking
 issue in step with organization drift. It authenticates with the
-`GOVERNANCE_AUDIT_TOKEN` repository secret (a fine-grained token scoped
-read-only to `fld-forge`) and fails loudly when that secret is missing or the
+`GOVERNANCE_AUDIT_TOKEN` repository secret (a fine-grained token limited to
+`fld-forge`: read-only on repositories, but organization `administration` at
+read and write, which is what the API demands to read organization rulesets)
+and fails loudly when that secret is missing or the
 matrix carries no fleet rows, by design - an audit that silently reported an
 empty fleet would read as a clean one. Current run state:
 `gh run list --workflow=fleet-audit.yml`. The re-create command, exit-code
