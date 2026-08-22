@@ -2,9 +2,8 @@
 
 Pragmatic heuristic: French text virtually always carries accented characters,
 so scanning for Latin diacritics catches regressions cheaply without NLP.
-Deliberately excluded: LICENSE (author name), CODE_OF_CONDUCT.md (canonical
-English text), CHANGELOG.md (generated history), .venv and tool caches (not
-tracked source).
+Deliberately excluded: LICENSE (author name), CHANGELOG.md (generated history),
+.venv and tool caches (not tracked source).
 """
 
 from pathlib import Path
