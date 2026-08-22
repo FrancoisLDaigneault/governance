@@ -9,7 +9,10 @@ silently rot.
 """
 
 import re
+import subprocess
+import sys
 import tomllib
+from pathlib import Path
 
 import pytest
 import test_standards
@@ -28,6 +31,13 @@ INSTALL_HOOK_TYPES = ("pre-commit", "pre-merge-commit")
 # proved the earlier text search accepted this, though it installs nothing.
 COMMENTED_INSTALL_TYPES_CONFIG = """
 # default_install_hook_types: [pre-commit, pre-merge-commit]
+repos: []
+"""
+
+# Both required hook types plus an unknown one. A review proved our own reads
+# accept this, while pre-commit rejects the file and installs nothing.
+EXTRA_INVALID_HOOK_TYPE_CONFIG = """
+default_install_hook_types: [pre-commit, pre-merge-commit, pre-merge_commit]
 repos: []
 """
 
@@ -295,6 +305,56 @@ def test_hook_type_check_rejects_a_commented_declaration() -> None:
     """
     with pytest.raises(AssertionError):
         _assert_both_hook_types_installed(_config(COMMENTED_INSTALL_TYPES_CONFIG))
+
+
+def _assert_config_matches_precommit_schema(path: Path) -> None:
+    """The shared assertion, so the negative test exercises the real check.
+
+    Validation goes through pre-commit's own `validate-config` subcommand,
+    the documented interface, rather than importing its schema objects:
+    `pre_commit.clientlib` is private and would move under us, trading one
+    silent gap for another. The venv interpreter runs it, so no PATH lookup
+    decides which pre-commit answers.
+    """
+    # S603: fixed argv, no shell, this venv's own pre-commit on a test path.
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pre_commit", "validate-config", str(path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"{path.name}: pre-commit rejects this configuration, so every hook would "
+        f"fail to install and the repository would run no gate at all:\n"
+        f"{result.stdout}{result.stderr}"
+    )
+
+
+def test_precommit_config_matches_schema() -> None:
+    """The config must satisfy pre-commit itself, not merely our own reads.
+
+    The assertions above check what we require of the file; they cannot know
+    what pre-commit rejects. A config that is invalid to the tool installs
+    nothing, so a repository can look fully gated here while every hook is
+    dead - the schema is the only source that settles it.
+    """
+    _assert_config_matches_precommit_schema(REPO / ".pre-commit-config.yaml")
+
+
+def test_schema_check_rejects_an_invalid_hook_type(tmp_path: Path) -> None:
+    """An unknown hook type must fail, even beside the two required ones.
+
+    This is the mutation a review used to prove our own reads were not
+    enough: the required types are both present, so the check above passes,
+    while pre-commit refuses the whole file. The types are validated rather
+    than constrained to an exact set, so adding a legitimate one later - a
+    pre-push gate, say - stays possible.
+    """
+    invalid = tmp_path / ".pre-commit-config.yaml"
+    invalid.write_text(EXTRA_INVALID_HOOK_TYPE_CONFIG, encoding="utf-8")
+    _assert_both_hook_types_installed(_config(EXTRA_INVALID_HOOK_TYPE_CONFIG))
+    with pytest.raises(AssertionError):
+        _assert_config_matches_precommit_schema(invalid)
 
 
 def test_size_caps_documented() -> None:
